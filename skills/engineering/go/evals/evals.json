@@ -1,0 +1,39 @@
+{
+  "skill_name": "goperf-skill",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a Go HTTP handler that parses JSON and calls a downstream service. Under load we're seeing high allocation rate and GC pressure. How can I reduce allocations on this path?",
+      "expected_output": "Recommendations that include measuring first (pprof/benchmarks), then patterns such as reusing buffers, pooling, or avoiding interface boxing; references to common-patterns or concrete code changes.",
+      "files": [],
+      "expectations": [
+        "The response recommends measuring first (e.g. benchmarks, pprof, or escape analysis with -gcflags=\"-m\") before optimizing.",
+        "The response mentions at least one allocation-reduction pattern: buffer reuse, sync.Pool, slice/map preallocation, or avoiding interface boxing on hot paths.",
+        "The response includes a concrete code example or reference (e.g. common-patterns) for reducing allocations."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Our Go service is calling an internal API with http.Client in a loop. We're hitting thousands of connections and the other team says we're not reusing them. What are we doing wrong and how do we fix it?",
+      "expected_output": "Explanation of connection reuse (draining response body, Transport tuning) and example or reference to draining body and/or tuned Transport.",
+      "files": [],
+      "expectations": [
+        "The response explains that not draining the response body before closing prevents the client from reusing connections.",
+        "The response recommends draining the body (e.g. io.Copy(io.Discard, resp.Body) or similar) before resp.Body.Close().",
+        "The response mentions Transport tuning (e.g. MaxIdleConns, MaxIdleConnsPerHost, IdleConnTimeout) or references networking patterns."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I'm building a high-throughput Go service that processes lots of small items. Someone said I should use sync.Pool and preallocate slices. Can you show me the right way to do that and when it actually helps?",
+      "expected_output": "Guidance on when to use pooling/prealloc (measure first), plus concrete bad vs good examples or pointers to the skill's reference content.",
+      "files": [],
+      "expectations": [
+        "The response recommends measuring or profiling first before applying sync.Pool or preallocation.",
+        "The response includes or references correct sync.Pool usage (Get, use, Put, and Reset where appropriate).",
+        "The response includes or references slice preallocation (e.g. make([]T, 0, capacity) or known size).",
+        "The response explains when pooling/prealloc helps (e.g. short-lived objects, hot path) or when to avoid it without data."
+      ]
+    }
+  ]
+}
