@@ -1,0 +1,5 @@
+interface:
+  display_name: "Go Engineering"
+  short_description: "Performant and idiomatic Go patterns & style"
+  brand_color: "#00ADD8"
+  default_prompt: "Use $go-engineering to apply performance and style recommendations for Go."
