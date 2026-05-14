@@ -7,7 +7,7 @@ description: >-
   and AIP guidelines from google.aip.dev. Use when authoring or reviewing
   .proto files, designing APIs, checking naming conventions, or aligning
   with the API Linter.
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Protocol Buffers & API Design
