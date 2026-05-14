@@ -7,7 +7,7 @@ description: >-
   readability, simplicity) from the Google Go Style Guide. Use when
   writing, reviewing, or optimizing Go code, or when asking about Go
   naming conventions, performance patterns, style, or readability.
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Go Engineering
