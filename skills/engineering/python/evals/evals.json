@@ -1,0 +1,115 @@
+{
+  "skill_name": "python-engineering",
+  "evals": [
+    {
+      "id": 1,
+      "name": "dataclass-vs-pydantic-boundary",
+      "prompt": "I'm adding an orders service to our backend. An Order has an id, a customer id, a list of line-item SKUs, and a created timestamp. It comes in as JSON on a POST endpoint and I also pass it around internally between a few modules. Should I use a dataclass or a pydantic model for this? Show me what you'd actually write.",
+      "expected_output": "A pydantic BaseModel at the HTTP boundary for validation and a plain dataclass for the internal domain object, with modern typing, timezone-aware timestamps, and default_factory for the list.",
+      "files": [],
+      "expectations": [
+        "The response distinguishes the boundary from the interior — pydantic (or TypeAdapter) where untrusted JSON arrives, a plain dataclass for the internal domain object — rather than using one type everywhere.",
+        "Type hints use builtin generics and PEP 604 unions (list[str], X | None); no typing.List, typing.Dict, or typing.Optional.",
+        "Any timestamp default is timezone-aware — datetime.now(UTC) or tzinfo=UTC — and the response does not use the deprecated datetime.utcnow().",
+        "The list field uses field(default_factory=list) (or a tuple), never a bare mutable default like items: list[str] = [].",
+        "If the response recommends @dataclass(frozen=True) alongside a mutable list field, it flags the __hash__ failure or avoids it (tuple, or hash=False/compare=False)."
+      ],
+      "signals": {
+        "present": [
+          "BaseModel|TypeAdapter",
+          "@dataclass",
+          "list\\[",
+          "default_factory",
+          "\\bUTC\\b|timezone\\.utc"
+        ],
+        "absent": [
+          "typing\\.List|typing\\.Optional|Optional\\[|\\bList\\[",
+          "default_factory\\s*=\\s*datetime\\.utcnow|=\\s*datetime\\.utcnow\\(\\)"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "name": "async-concurrency-and-timeouts",
+      "prompt": "I need to fetch about 50 URLs concurrently in Python 3.12 and collect the response bodies. Some of them will fail with HTTP errors and at least one will hang forever. Write the code, and explain how I should be handling the errors and the timeouts.",
+      "expected_output": "asyncio.TaskGroup for structured concurrency, asyncio.timeout around outward awaits, except* for the resulting ExceptionGroup, and no broad exception handling that would mask cancellation.",
+      "files": [],
+      "expectations": [
+        "The code uses asyncio.TaskGroup for the concurrent fetches, or explicitly justifies asyncio.gather(return_exceptions=True) as a deliberate alternative.",
+        "Every outward network await is bounded by a timeout — asyncio.timeout(...) or an explicit client timeout — rather than waiting indefinitely.",
+        "The response explains that a TaskGroup surfaces failures as an ExceptionGroup and handles them with except* (or otherwise correctly notes a plain except of the original type will not match).",
+        "The response does not claim that except Exception: catches or swallows asyncio.CancelledError.",
+        "No blocking calls appear inside coroutines (no time.sleep, no requests.get); blocking work is delegated via asyncio.to_thread if present at all."
+      ],
+      "signals": {
+        "present": [
+          "TaskGroup|return_exceptions\\s*=\\s*True",
+          "asyncio\\.timeout|timeout\\s*=",
+          "except\\*"
+        ],
+        "absent": [
+          "time\\.sleep",
+          "await\\s+requests\\.|^\\s*requests\\.(get|post)\\(",
+          "except Exception[^\\n]*CancelledError"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "name": "new-project-scaffold",
+      "prompt": "Starting a new internal CLI tool at work called invsync — it reconciles inventory counts between two warehouse APIs and will get published to our private index eventually. Set up the project skeleton for me: layout, pyproject, linting, tests, CI. We're standardising on Python 3.12.",
+      "expected_output": "src layout, pyproject.toml as the single source of truth, uv for envs and deps, ruff for lint and format, pytest, a console entry point, and a CI outline.",
+      "files": [],
+      "expectations": [
+        "The project uses a src layout (src/invsync/) rather than a top-level invsync/ package next to tests/.",
+        "pyproject.toml is the single source of truth — no setup.py, and no requirements.txt presented as the place direct dependencies are declared.",
+        "The toolchain is uv for envs/deps and ruff for both lint and format; it does not stack black + isort + flake8 alongside ruff.",
+        "The ruff configuration does not list the removed rules ANN101 or ANN102 in its ignore list.",
+        "A console entry point is declared under [project.scripts], and requires-python pins >=3.12 (or >=3.11).",
+        "Dev-only dependencies are separated from runtime dependencies — via [dependency-groups] or an optional-dependencies extra — rather than mixed into [project].dependencies."
+      ],
+      "signals": {
+        "present": [
+          "src/",
+          "pyproject\\.toml",
+          "\\buv\\b",
+          "\\bruff\\b",
+          "\\[project\\.scripts\\]",
+          "dependency-groups|optional-dependencies"
+        ],
+        "absent": [
+          "ignore\\s*=\\s*\\[[^\\]]*ANN10[12]",
+          "from setuptools import setup|setup\\(\\s*\\n?\\s*name\\s*="
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "name": "review-legacy-module",
+      "prompt": "Can you review this before I merge it? It's a small helper module one of our contractors wrote.\n\n```python\nimport logging\nfrom typing import List, Optional\nfrom datetime import datetime\n\nlog = logging.getLogger()\n\ndef build_report(rows: List[dict], sep=', ', tags: List[str] = []) -> Optional[str]:\n    assert rows, 'rows required'\n    out = ''\n    for r in rows:\n        out += str(r['name']) + sep\n    log.info(f'built report for {len(rows)} rows at {datetime.utcnow()}')\n    try:\n        return out + ':' + ','.join(tags)\n    except Exception:\n        pass\n```",
+      "expected_output": "A review flagging the mutable default, assert-as-validation, swallowed exception, f-string in the log call, outdated typing imports, utcnow, and quadratic string concatenation.",
+      "files": [],
+      "expectations": [
+        "Flags the mutable default argument tags: List[str] = [] and recommends None plus a default_factory or an if-None guard.",
+        "Flags assert being used for runtime validation and explains that python -O strips assert statements.",
+        "Flags the except Exception: pass block as swallowing errors silently.",
+        "Flags the f-string inside the logging call and recommends passing a pattern with separate arguments, e.g. log.info(\"built report for %d rows\", len(rows)).",
+        "Flags typing.List and typing.Optional as outdated and recommends list[...] and X | None.",
+        "Flags datetime.utcnow() as deprecated and naive, recommending datetime.now(UTC).",
+        "Flags the string accumulation with += inside the loop and recommends building a list then \"\".join(...).",
+        "Flags logging.getLogger() with no argument and recommends logging.getLogger(__name__) for module attribution."
+      ],
+      "signals": {
+        "present": [
+          "default_factory|mutable default",
+          "-O\\b|strips",
+          "getLogger\\(__name__\\)",
+          "%s|%d",
+          "utcnow",
+          "\\.join\\("
+        ],
+        "absent": []
+      }
+    }
+  ]
+}

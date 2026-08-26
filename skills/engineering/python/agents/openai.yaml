@@ -1,0 +1,5 @@
+interface:
+  display_name: "Python Engineering"
+  short_description: "Modern Python 3.11+ typing, style & tooling"
+  brand_color: "#3776AB"
+  default_prompt: "Use $python-engineering to apply Google Python Style Guide conventions and modern Python patterns."

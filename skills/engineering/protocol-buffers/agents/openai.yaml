@@ -1,0 +1,5 @@
+interface:
+  display_name: "Protocol Buffers & API Design"
+  short_description: "Proto conventions & resource-oriented API design"
+  brand_color: "#4285F4"
+  default_prompt: "Use $protocol-buffers to design and review .proto files against AIP resource-oriented conventions."
