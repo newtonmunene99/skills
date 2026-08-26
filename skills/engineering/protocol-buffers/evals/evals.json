@@ -13,7 +13,11 @@
         "ListCampaignsRequest includes parent, page_size and page_token; ListCampaignsResponse includes a repeated campaigns field and next_page_token.",
         "UpdateCampaignRequest includes a google.protobuf.FieldMask update_mask field.",
         "CreateCampaignRequest includes parent and the campaign resource (and a campaign_id field, or an explanation of server-assigned ids).",
-        "The proto uses google.api annotations — google.api.http on the methods and/or google.api.resource on the message — rather than bare RPCs with no bindings."
+        "The google.api.http bindings use the correct shapes, not merely present annotations: get on /v1/{name=advertisers/*/campaigns/*}, post on the parent collection with body: \"campaign\", and patch keyed on {campaign.name=...}.",
+        "The name field is annotated (google.api.field_behavior) = IDENTIFIER — not REQUIRED, which is the common mistake — and the message carries a google.api.resource option declaring its pattern and type.",
+        "The parent field carries a google.api.resource_reference with child_type (or type) rather than being an unannotated string.",
+        "create_time and update_time are present and annotated OUTPUT_ONLY, and any enum's zero value is named *_UNSPECIFIED.",
+        "The proto package ends in a major version (e.g. acme.advertising.v1) rather than being unversioned."
       ],
       "signals": {
         "present": [
@@ -22,8 +26,12 @@
           "page_token",
           "next_page_token",
           "update_mask|FieldMask",
-          "google\\.api\\.(http|resource)",
-          "ListCampaigns"
+          "field_behavior\\)\\s*=\\s*IDENTIFIER",
+          "resource_reference",
+          "OUTPUT_ONLY",
+          "_UNSPECIFIED",
+          "body:\\s*\\\"campaign\\\"",
+          "package\\s+[\\w.]+\\.v\\d"
         ],
         "absent": []
       }
@@ -35,11 +43,13 @@
       "expected_output": "A custom method ArchiveCampaign bound with a colon suffix, returning google.longrunning.Operation with operation_info declaring response and metadata types, plus reasoning about when a custom method is appropriate.",
       "files": [],
       "expectations": [
-        "The method is a custom method named ArchiveCampaign taking an ArchiveCampaignRequest whose identifier field is name.",
+        "The method is a custom method named ArchiveCampaign taking an ArchiveCampaignRequest whose identifier field is name, with name annotated REQUIRED and carrying a google.api.resource_reference.",
         "The HTTP binding uses the colon-suffix form for custom methods, e.g. post: \"/v1/{name=advertisers/*/campaigns/*}:archive\".",
         "Because the operation is long-running, the method returns google.longrunning.Operation rather than the resource directly.",
         "The response declares google.longrunning.operation_info with both response_type and metadata_type.",
-        "The response explains why this is a custom method rather than a standard one (the behaviour doesn't map onto Get/List/Create/Update/Delete), rather than silently reaching for a custom verb."
+        "A metadata message is actually defined (not just named) carrying progress information such as create_time, end_time, or a percent/stage field.",
+        "The archival lifecycle is modelled on the resource itself — an OUTPUT_ONLY state or lifecycle enum — so clients can observe the result, rather than the RPC being the only expression of it.",
+        "The response explains why this is a custom method rather than a standard one (the behaviour doesn't map onto Get/List/Create/Update/Delete) and, if it discusses alternatives, says why Update-with-state or soft-delete were rejected."
       ],
       "signals": {
         "present": [
@@ -47,7 +57,10 @@
           "longrunning\\.Operation",
           "operation_info",
           "response_type",
-          "metadata_type"
+          "metadata_type",
+          "message\\s+ArchiveCampaignMetadata|Metadata\\s*\\{",
+          "OUTPUT_ONLY",
+          "resource_reference"
         ],
         "absent": []
       }
@@ -64,8 +77,11 @@
         "Flags the method naming — rpc getItem should be PascalCase GetItem, and DeleteItemById should be DeleteItem.",
         "Flags that ListItems is missing pagination — page_size and page_token on the request, next_page_token on the response — and that limit is the wrong field name.",
         "Flags the collection naming: the List method and its messages should be plural (ListItems, ListItemsRequest, ListItemsResponse), and Req/Resp should be spelled Request/Response.",
-        "Flags that the package lacks a version (e.g. inventory.v1) and/or that Delete should return google.protobuf.Empty rather than the deleted resource.",
-        "Flags the redundant is_deleted boolean field (soft-delete state belongs in the enum or is expressed via the standard delete semantics)."
+        "Flags that the package inventory lacks a major version and should be inventory.v1.",
+        "Flags that DeleteItem returning Item is wrong and should return google.protobuf.Empty (or, if soft delete is intended, says so and adds Undelete). This is judged separately from the package-version finding.",
+        "Flags the redundant is_deleted boolean field (soft-delete state belongs in the enum or is expressed via the standard delete semantics).",
+        "Flags that the service has no google.api.http bindings at all, so none of the RPCs are reachable over REST.",
+        "Flags the absence of google.api.resource / field_behavior annotations, or the total absence of doc comments on the service, messages and fields."
       ],
       "signals": {
         "present": [
@@ -73,7 +89,11 @@
           "page_token",
           "ListItems",
           "Request\\b",
-          "\\.v1|version"
+          "\\.v1",
+          "Empty",
+          "google\\.api\\.http",
+          "field_behavior|google\\.api\\.resource",
+          "is_deleted"
         ],
         "absent": []
       }

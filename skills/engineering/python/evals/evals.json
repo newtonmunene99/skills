@@ -8,22 +8,20 @@
       "expected_output": "A pydantic BaseModel at the HTTP boundary for validation and a plain dataclass for the internal domain object, with modern typing, timezone-aware timestamps, and default_factory for the list.",
       "files": [],
       "expectations": [
-        "The response distinguishes the boundary from the interior — pydantic (or TypeAdapter) where untrusted JSON arrives, a plain dataclass for the internal domain object — rather than using one type everywhere.",
-        "Type hints use builtin generics and PEP 604 unions (list[str], X | None); no typing.List, typing.Dict, or typing.Optional.",
-        "Any timestamp default is timezone-aware — datetime.now(UTC) or tzinfo=UTC — and the response does not use the deprecated datetime.utcnow().",
-        "The list field uses field(default_factory=list) (or a tuple), never a bare mutable default like items: list[str] = [].",
-        "If the response recommends @dataclass(frozen=True) alongside a mutable list field, it flags the __hash__ failure or avoids it (tuple, or hash=False/compare=False)."
+        "The response distinguishes the boundary from the interior — pydantic (or TypeAdapter) where untrusted JSON arrives, a plain dataclass for the internal domain object — rather than using one type end-to-end.",
+        "The inbound request model does not let a client supply the server-assigned id or created_at: those fields are either absent from the request model or explicitly marked server-owned.",
+        "Any timestamp default is timezone-aware — datetime.now(UTC) or tzinfo=UTC — and the response does not use datetime.utcnow() as a value or default_factory.",
+        "The list field uses field(default_factory=list) or an immutable tuple, never a bare mutable default like items: list[str] = [].",
+        "If frozen=True appears on a dataclass carrying a list/dict/set field, the response states the consequence — the generated __hash__ raises TypeError on first hash — rather than silently sidestepping it with a tuple."
       ],
       "signals": {
         "present": [
           "BaseModel|TypeAdapter",
           "@dataclass",
-          "list\\[",
-          "default_factory",
+          "default_factory|tuple\\[",
           "\\bUTC\\b|timezone\\.utc"
         ],
         "absent": [
-          "typing\\.List|typing\\.Optional|Optional\\[|\\bList\\[",
           "default_factory\\s*=\\s*datetime\\.utcnow|=\\s*datetime\\.utcnow\\(\\)"
         ]
       }
@@ -37,20 +35,23 @@
       "expectations": [
         "The code uses asyncio.TaskGroup for the concurrent fetches, or explicitly justifies asyncio.gather(return_exceptions=True) as a deliberate alternative.",
         "Every outward network await is bounded by a timeout — asyncio.timeout(...) or an explicit client timeout — rather than waiting indefinitely.",
-        "The response explains that a TaskGroup surfaces failures as an ExceptionGroup and handles them with except* (or otherwise correctly notes a plain except of the original type will not match).",
-        "The response does not claim that except Exception: catches or swallows asyncio.CancelledError.",
+        "The failure aggregation matches the chosen primitive: if TaskGroup is used, failures are handled with except* or collected as data; if gather is used instead, the response says why ExceptionGroup semantics were not wanted. (Judge against whichever primitive the answer actually chose.)",
+        "The response positively states that asyncio.CancelledError inherits from BaseException — so except Exception: does not catch it — and that cancellation must be allowed to propagate. Silence on cancellation does not satisfy this.",
+        "Concurrency is bounded for ~50 URLs — an asyncio.Semaphore, httpx.Limits, or equivalent — rather than firing every request at once.",
+        "A single AsyncClient (or equivalent session) is reused across the batch, not constructed per request.",
         "No blocking calls appear inside coroutines (no time.sleep, no requests.get); blocking work is delegated via asyncio.to_thread if present at all."
       ],
       "signals": {
         "present": [
           "TaskGroup|return_exceptions\\s*=\\s*True",
           "asyncio\\.timeout|timeout\\s*=",
-          "except\\*"
+          "Semaphore|Limits",
+          "BaseException",
+          "AsyncClient"
         ],
         "absent": [
-          "time\\.sleep",
-          "await\\s+requests\\.|^\\s*requests\\.(get|post)\\(",
-          "except Exception[^\\n]*CancelledError"
+          "time\\.sleep\\(",
+          "await\\s+requests\\.|^\\s*requests\\.(get|post)\\("
         ]
       }
     },
@@ -65,7 +66,9 @@
         "pyproject.toml is the single source of truth — no setup.py, and no requirements.txt presented as the place direct dependencies are declared.",
         "The toolchain is uv for envs/deps and ruff for both lint and format; it does not stack black + isort + flake8 alongside ruff.",
         "The ruff configuration does not list the removed rules ANN101 or ANN102 in its ignore list.",
-        "A console entry point is declared under [project.scripts], and requires-python pins >=3.12 (or >=3.11).",
+        "requires-python declares a lower bound only. An upper cap such as >=3.12,<3.13 does not satisfy this — it breaks the package on the next Python release.",
+        "A console entry point is declared under [project.scripts], and the module and function it names actually appear in the sketched source rather than dangling.",
+        "Wheel packaging is configured for the src layout (e.g. [tool.hatch.build.targets.wheel] packages = [\"src/invsync\"]) so the package is actually included in the built wheel.",
         "Dev-only dependencies are separated from runtime dependencies — via [dependency-groups] or an optional-dependencies extra — rather than mixed into [project].dependencies."
       ],
       "signals": {
@@ -75,11 +78,13 @@
           "\\buv\\b",
           "\\bruff\\b",
           "\\[project\\.scripts\\]",
-          "dependency-groups|optional-dependencies"
+          "dependency-groups|optional-dependencies",
+          "targets\\.wheel|packages\\s*=\\s*\\[\\s*\\\"src/"
         ],
         "absent": [
           "ignore\\s*=\\s*\\[[^\\]]*ANN10[12]",
-          "from setuptools import setup|setup\\(\\s*\\n?\\s*name\\s*="
+          "from setuptools import setup|setup\\(\\s*\\n?\\s*name\\s*=",
+          "requires-python[^\\n]*<\\s*3\\.\\d"
         ]
       }
     },
@@ -90,9 +95,11 @@
       "expected_output": "A review flagging the mutable default, assert-as-validation, swallowed exception, f-string in the log call, outdated typing imports, utcnow, and quadratic string concatenation.",
       "files": [],
       "expectations": [
-        "Flags the mutable default argument tags: List[str] = [] and recommends None plus a default_factory or an if-None guard.",
+        "Flags the mutable default argument tags: List[str] = [] and recommends a non-shared default — None plus a guard, default_factory, or an immutable default such as () — without insisting on one specific remedy.",
         "Flags assert being used for runtime validation and explains that python -O strips assert statements.",
         "Flags the except Exception: pass block as swallowing errors silently.",
+        "States a concrete correctness consequence of that swallow — that the function falls off the end and returns None, so callers get None and the declared return type is what makes it type-check at all.",
+        "Catches the trailing-separator output bug: the accumulated string ends with sep before the ':' is appended, so the output is malformed. This is the only genuine behavioural defect in the snippet.",
         "Flags the f-string inside the logging call and recommends passing a pattern with separate arguments, e.g. log.info(\"built report for %d rows\", len(rows)).",
         "Flags typing.List and typing.Optional as outdated and recommends list[...] and X | None.",
         "Flags datetime.utcnow() as deprecated and naive, recommending datetime.now(UTC).",
@@ -101,12 +108,13 @@
       ],
       "signals": {
         "present": [
-          "default_factory|mutable default",
+          "default_factory|mutable default|immutable default",
           "-O\\b|strips",
           "getLogger\\(__name__\\)",
           "%s|%d",
           "utcnow",
-          "\\.join\\("
+          "\\.join\\(",
+          "trailing|sep.*before|separator"
         ],
         "absent": []
       }
