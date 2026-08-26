@@ -1,0 +1,82 @@
+{
+  "skill_name": "protocol-buffers",
+  "evals": [
+    {
+      "id": 1,
+      "name": "resource-crud-design",
+      "prompt": "I need to design the API for managing ad campaigns. Each campaign belongs to an advertiser, and we need the usual create / read / update / list / delete. Write me the .proto — the service and the messages.",
+      "expected_output": "A resource-oriented proto with the five standard methods, a name-based resource identifier, parent-scoped collection, pagination on List, and a field mask on Update.",
+      "files": [],
+      "expectations": [
+        "The Campaign message carries a string name field as its resource identifier following the pattern advertisers/{advertiser}/campaigns/{campaign}, rather than a bare id field.",
+        "The service defines the five standard methods named GetCampaign, ListCampaigns, CreateCampaign, UpdateCampaign and DeleteCampaign, each with its own request message.",
+        "ListCampaignsRequest includes parent, page_size and page_token; ListCampaignsResponse includes a repeated campaigns field and next_page_token.",
+        "UpdateCampaignRequest includes a google.protobuf.FieldMask update_mask field.",
+        "CreateCampaignRequest includes parent and the campaign resource (and a campaign_id field, or an explanation of server-assigned ids).",
+        "The proto uses google.api annotations — google.api.http on the methods and/or google.api.resource on the message — rather than bare RPCs with no bindings."
+      ],
+      "signals": {
+        "present": [
+          "string name",
+          "page_size",
+          "page_token",
+          "next_page_token",
+          "update_mask|FieldMask",
+          "google\\.api\\.(http|resource)",
+          "ListCampaigns"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 2,
+      "name": "custom-method-and-lro",
+      "prompt": "We need to add an 'archive' operation to our campaigns API. Archiving moves a lot of historical data around so it takes several minutes to finish — the client can't just block on it. How should I model that in the proto, and why?",
+      "expected_output": "A custom method ArchiveCampaign bound with a colon suffix, returning google.longrunning.Operation with operation_info declaring response and metadata types, plus reasoning about when a custom method is appropriate.",
+      "files": [],
+      "expectations": [
+        "The method is a custom method named ArchiveCampaign taking an ArchiveCampaignRequest whose identifier field is name.",
+        "The HTTP binding uses the colon-suffix form for custom methods, e.g. post: \"/v1/{name=advertisers/*/campaigns/*}:archive\".",
+        "Because the operation is long-running, the method returns google.longrunning.Operation rather than the resource directly.",
+        "The response declares google.longrunning.operation_info with both response_type and metadata_type.",
+        "The response explains why this is a custom method rather than a standard one (the behaviour doesn't map onto Get/List/Create/Update/Delete), rather than silently reaching for a custom verb."
+      ],
+      "signals": {
+        "present": [
+          ":archive",
+          "longrunning\\.Operation",
+          "operation_info",
+          "response_type",
+          "metadata_type"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 3,
+      "name": "review-nonconforming-proto",
+      "prompt": "One of our teams sent this over for review. Does it follow the API guidelines? What would you change?\n\n```proto\nsyntax = \"proto3\";\npackage inventory;\n\nservice InventoryService {\n  rpc getItem(GetItemReq) returns (Item);\n  rpc ListItem(ListItemReq) returns (ListItemResp);\n  rpc DeleteItemById(DeleteItemReq) returns (Item);\n}\n\nenum Status {\n  ACTIVE = 0;\n  DISCONTINUED = 1;\n}\n\nmessage Item {\n  int64 id = 1;\n  string item_name = 2;\n  Status status = 3;\n  bool is_deleted = 4;\n}\n\nmessage ListItemReq { int32 limit = 1; }\nmessage ListItemResp { repeated Item items = 1; }\n```",
+      "expected_output": "A review flagging the enum zero value, id-instead-of-name, method naming, missing pagination, plural/singular collection naming, and the versionless package.",
+      "files": [],
+      "expectations": [
+        "Flags that the Status enum's zero value must be STATUS_UNSPECIFIED rather than a meaningful default like ACTIVE.",
+        "Flags that the resource identifier should be a string name field following a resource-name pattern, not an int64 id.",
+        "Flags the method naming — rpc getItem should be PascalCase GetItem, and DeleteItemById should be DeleteItem.",
+        "Flags that ListItems is missing pagination — page_size and page_token on the request, next_page_token on the response — and that limit is the wrong field name.",
+        "Flags the collection naming: the List method and its messages should be plural (ListItems, ListItemsRequest, ListItemsResponse), and Req/Resp should be spelled Request/Response.",
+        "Flags that the package lacks a version (e.g. inventory.v1) and/or that Delete should return google.protobuf.Empty rather than the deleted resource.",
+        "Flags the redundant is_deleted boolean field (soft-delete state belongs in the enum or is expressed via the standard delete semantics)."
+      ],
+      "signals": {
+        "present": [
+          "UNSPECIFIED",
+          "page_token",
+          "ListItems",
+          "Request\\b",
+          "\\.v1|version"
+        ],
+        "absent": []
+      }
+    }
+  ]
+}

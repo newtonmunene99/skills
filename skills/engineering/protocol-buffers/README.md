@@ -38,7 +38,9 @@ Supported agents include **Cursor**, **Codex**, **Claude Code**, **OpenCode**, *
 - **references/aip/messages-and-fields.md** — Message and field naming, field behavior, standard fields, pagination, errors
 - **references/aip/full-example.md** — Full minimal CRUD proto example
 - **references/aip/naming-and-methods.md** — Naming conventions and standard methods tables
+- **agents/openai.yaml** — optional Codex/Copilot display metadata (not read by the model)
+- **evals/** — 3 eval prompts with expectations, and the harness to run them
 
 ## License
 
-Apache-2.0. See [LICENSE](../../LICENSE).
+Apache-2.0. See [LICENSE](LICENSE).
