@@ -107,3 +107,25 @@ Add or change prompts in `evals.json`, then re-run `prepare_workspace.py` to
 refresh `eval_metadata.json`. Keep prompts in the register a real user would
 type — concrete detail, a bit of backstory, occasional sloppiness. A prompt that
 reads like a spec tests the grader, not the skill.
+
+### Signals catch text; expectations carry judgement
+
+Iteration 1 scored ~100% in both columns and taught us the expectations were
+testing what the model already knows. The iteration-2 set aims at the edges the
+graders found in the *baseline* answers — an upper cap on `requires-python`, a
+dangling `[project.scripts]` target, a proto whose prose promised soft delete
+while `Delete` returned `Empty`, `cancel_requested` instead of
+`requested_cancellation`.
+
+Most of that sharpening is **not** expressible as a regex. "States the
+consequence rather than sidestepping it", "the module it names actually appears
+in the source", "judged separately from the package-version finding" — those
+need a grader reading the answer. `grade_signals.py` only ever catches the
+textually-detectable subset, and running the sharpened signals against the
+iteration-1 answers proves the point: one new signal fired (the
+`requires-python` upper cap, exactly the defect the grader flagged), the rest
+stayed flat.
+
+So read a flat signal delta as "no *textual* difference", never as "no
+difference". The grader is where the judgement lives; the scanner just keeps the
+mechanical half honest and reproducible.

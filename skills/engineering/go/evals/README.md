@@ -1,6 +1,6 @@
 # Evals and benchmark workflow
 
-This directory contains test cases for goperf-skill and instructions for running the full eval pipeline (runner, grader, aggregate, viewer) using the **skill-creator** tooling.
+This directory contains test cases for the go-engineering skill and instructions for running the full eval pipeline (runner, grader, aggregate, viewer) using the **skill-creator** tooling.
 
 ## Prerequisites
 
@@ -19,8 +19,8 @@ This directory contains test cases for goperf-skill and instructions for running
 The workspace is a **sibling** of the skill directory:
 
 ```
-goperf-skill/              # skill root
-goperf-skill-workspace/    # workspace (created by prepare_workspace.py)
+go/                        # skill root
+go-engineering-workspace/    # workspace (created by prepare_workspace.py)
 └── iteration-1/
     ├── eval-1/
     │   ├── eval_metadata.json
@@ -55,21 +55,21 @@ From the **skill root** (parent of `evals/`):
 python evals/prepare_workspace.py
 ```
 
-Or from repo root if goperf-skill is in a subdir:
+Or from repo root if the go skill is in a subdir:
 
 ```bash
-python goperf-skill/evals/prepare_workspace.py --skill-dir goperf-skill
+python go/evals/prepare_workspace.py --skill-dir go
 ```
 
-This creates `goperf-skill-workspace/iteration-1/eval-1/`, `eval-2/`, `eval-3/` with `eval_metadata.json` and empty `with_skill/run-1/outputs/` and `without_skill/run-1/outputs/`.
+This creates `go-engineering-workspace/iteration-1/eval-1/`, `eval-2/`, `eval-3/` with `eval_metadata.json` and empty `with_skill/run-1/outputs/` and `without_skill/run-1/outputs/`.
 
 ### 2. Run evals (agent)
 
 Use the skill-creator workflow (or your own runner):
 
 - For each eval in `evals.json`, run the **prompt** twice:
-  - **With skill**: skill path = path to `goperf-skill`, save outputs to `goperf-skill-workspace/iteration-1/eval-<id>/with_skill/run-1/outputs/`.
-  - **Without skill**: same prompt, no skill, save to `goperf-skill-workspace/iteration-1/eval-<id>/without_skill/run-1/outputs/`.
+  - **With skill**: skill path = path to `go-engineering`, save outputs to `go-engineering-workspace/iteration-1/eval-<id>/with_skill/run-1/outputs/`.
+  - **Without skill**: same prompt, no skill, save to `go-engineering-workspace/iteration-1/eval-<id>/without_skill/run-1/outputs/`.
 - Optionally save `timing.json` in each `run-1/` when the run completes (from the run notification: `total_tokens`, `duration_ms`, `total_duration_seconds`).
 
 If you use an agent that follows the skill-creator SKILL.md, it will spawn subagents with these instructions and paths.
@@ -89,7 +89,7 @@ The skill-creator’s `agents/grader.md` describes how the grader agent should e
 
 ### 5. Aggregate and open the viewer
 
-Set the path to the skill-creator directory (e.g. where you have `scripts/aggregate_benchmark.py` and `eval-viewer/generate_review.py`). If goperf-skill lives inside the goperf repo and skill-creator is in `.agents/skills/skill-creator/`:
+Set the path to the skill-creator directory (e.g. where you have `scripts/aggregate_benchmark.py` and `eval-viewer/generate_review.py`). If skill-creator is in `.agents/skills/skill-creator/`:
 
 ```bash
 export SKILL_CREATOR_PATH=".agents/skills/skill-creator"   # or absolute path
@@ -104,10 +104,10 @@ Or pass the path as the second argument:
 
 This will:
 
-1. Run `python -m scripts.aggregate_benchmark goperf-skill-workspace/iteration-1 --skill-name goperf-skill` from the skill-creator directory, producing `benchmark.json` and `benchmark.md`.
-2. Run `python eval-viewer/generate_review.py goperf-skill-workspace/iteration-1 --skill-name goperf-skill --benchmark goperf-skill-workspace/iteration-1/benchmark.json` to start the review server (or use `--static out.html` for a static file in headless environments).
+1. Run `python -m scripts.aggregate_benchmark go-engineering-workspace/iteration-1 --skill-name go-engineering` from the skill-creator directory, producing `benchmark.json` and `benchmark.md`.
+2. Run `python eval-viewer/generate_review.py go-engineering-workspace/iteration-1 --skill-name go-engineering --benchmark go-engineering-workspace/iteration-1/benchmark.json` to start the review server (or use `--static out.html` for a static file in headless environments).
 
-Then open the URL (e.g. http://localhost:3117) to review outputs and the benchmark tab. When done, submit feedback; it is saved to `goperf-skill-workspace/iteration-1/feedback.json`.
+Then open the URL (e.g. http://localhost:3117) to review outputs and the benchmark tab. When done, submit feedback; it is saved to `go-engineering-workspace/iteration-1/feedback.json`.
 
 ### 6. Iterate
 
@@ -115,10 +115,10 @@ Improve the skill based on feedback, then rerun from step 2 into a new iteration
 
 ```bash
 # After creating iteration-2 and grading:
-python eval-viewer/generate_review.py goperf-skill-workspace/iteration-2 \
-  --skill-name goperf-skill \
-  --benchmark goperf-skill-workspace/iteration-2/benchmark.json \
-  --previous-workspace goperf-skill-workspace/iteration-1
+python eval-viewer/generate_review.py go-engineering-workspace/iteration-2 \
+  --skill-name go-engineering \
+  --benchmark go-engineering-workspace/iteration-2/benchmark.json \
+  --previous-workspace go-engineering-workspace/iteration-1
 ```
 
 ## Schema references
