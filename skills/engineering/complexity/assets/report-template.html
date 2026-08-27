@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Complexity report</title>
+<style>
+  :root {
+    --bg: #fbfbfa;      --panel: #ffffff;   --ink: #1a1a18;
+    --muted: #6b6b66;   --line: #e5e4e0;    --accent: #6d4aff;
+    --attention: #b4402a; --expected: #4a7c59; --long: #9a6b1f;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15151a;    --panel: #1d1d23;   --ink: #ececf0;
+      --muted: #9a9aa4; --line: #2e2e37;    --accent: #9c86ff;
+      --attention: #ff8f75; --expected: #86c79a; --long: #e0b45f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 3rem 1.5rem 6rem; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  .hide { display: none !important; }
+
+  /* ---------- masthead ---------- */
+  .crumb {
+    display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+    font-family: var(--mono); font-size: .78rem; color: var(--muted);
+    padding-bottom: .5rem;
+  }
+  .crumb b { color: var(--ink); font-weight: 500; }
+  .crumb .kind { letter-spacing: .1em; text-transform: uppercase; }
+  .throwaway {
+    display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 3px; padding: .2rem .5rem; margin-bottom: 1rem;
+  }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 1.75rem; margin-bottom: 2.25rem; }
+  .head-row { display: flex; gap: 2rem; align-items: flex-start; }
+  .head-main { flex: 1 1 auto; min-width: 0; }
+  h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 .6rem; letter-spacing: -.02em; text-wrap: balance; }
+  .lede { margin: 0; color: var(--muted); max-width: 62ch; }
+  .grade {
+    flex: 0 0 auto; border: 1px solid var(--attention); border-radius: 4px;
+    padding: .7rem 1.1rem; text-align: center; color: var(--attention);
+  }
+  .grade b { display: block; font-size: 1.6rem; line-height: 1.1; font-weight: 600; }
+  .grade span { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+
+  h2 {
+    font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
+    margin: 2.75rem 0 1rem; font-weight: 600;
+  }
+  .sec-note { color: var(--muted); font-size: .88rem; max-width: 62ch; margin: 0 0 1.25rem; }
+  .after-note { color: var(--muted); font-size: .88rem; max-width: 62ch; margin: 1rem 0 0; }
+
+  /* ---------- stat strip ---------- */
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel);
+  }
+  .stat { padding: 1rem 1.15rem; border-left: 1px solid var(--line); }
+  .stat:first-child { border-left: 0; }
+  .stat-l { font-family: var(--mono); font-size: 10.5px; letter-spacing: .11em;
+            text-transform: uppercase; color: var(--muted); }
+  .stat-v { font-family: var(--mono); font-size: 1.45rem; font-weight: 600; line-height: 1.3;
+            font-variant-numeric: tabular-nums; margin-top: .25rem; }
+  .stat-s { font-family: var(--mono); font-size: .78rem; color: var(--muted); }
+  .stat.t-attention .stat-l, .stat.t-attention .stat-v, .stat.t-attention .stat-s { color: var(--attention); }
+
+  /* ---------- distribution + insight ---------- */
+  .split { display: grid; grid-template-columns: 1fr 19rem; gap: 1.75rem; align-items: start; }
+  .dist { display: flex; gap: .45rem; align-items: flex-end; height: 6.5rem; }
+  .dist figure { flex: 1; margin: 0; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+  .dist .bar { background: var(--muted); opacity: .3; border-radius: 2px 2px 0 0; min-height: 2px; }
+  .dist .t-long .bar { background: var(--long); opacity: .55; }
+  .dist .t-attention .bar { background: var(--attention); opacity: .7; }
+  .dist-n { font-family: var(--mono); font-size: .85rem; text-align: center;
+            font-variant-numeric: tabular-nums; padding: .3rem 0 .25rem;
+            border-bottom: 1px solid var(--line); }
+  .dist .t-long .dist-n { color: var(--long); }
+  .dist .t-attention .dist-n { color: var(--attention); font-weight: 600; }
+  .dist-l { font-family: var(--mono); font-size: .72rem; color: var(--muted); text-align: center; padding-top: .3rem; }
+  .insight {
+    background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 4px; padding: 1rem 1.15rem;
+  }
+  .insight .lbl { font-family: var(--mono); font-size: 10.5px; letter-spacing: .11em;
+                  text-transform: uppercase; color: var(--muted); }
+  .insight .lead { margin: .5rem 0 0; font-weight: 600; }
+  .insight .body { margin: .6rem 0 0; color: var(--muted); font-size: .88rem; }
+
+  /* ---------- explainers ---------- */
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.75rem; }
+  .ex h3 { font-family: var(--mono); font-size: .95rem; margin: 0 0 .4rem; font-weight: 600; }
+  .ex p { margin: 0; color: var(--muted); font-size: .88rem; }
+  .ex em { color: var(--ink); font-style: italic; }
+
+  /* ---------- code panels ---------- */
+  .code { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .code-h {
+    display: flex; justify-content: space-between; gap: 1rem; padding: .55rem .9rem;
+    border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 10.5px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  }
+  .code.v-expected  .code-h .k { color: var(--expected); }
+  .code.v-attention .code-h .k { color: var(--attention); }
+  .code.v-long      .code-h .k { color: var(--long); }
+  .code pre { margin: 0; padding: .9rem; overflow-x: auto; font-family: var(--mono);
+              font-size: .78rem; line-height: 1.65; }
+  .code .cap { padding: .8rem .9rem; border-top: 1px solid var(--line);
+               color: var(--muted); font-size: .84rem; }
+
+  /* ---------- tables ---------- */
+  .tblwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+  th {
+    text-align: left; font-family: var(--mono); font-size: 10.5px; letter-spacing: .11em;
+    text-transform: uppercase; color: var(--muted); font-weight: 500;
+    padding: .7rem .85rem; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  td { padding: .65rem .85rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.n, th.n { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  td.m { font-family: var(--mono); font-size: .82rem; }
+  td.fn { font-family: var(--mono); font-weight: 600; font-size: .84rem; }
+  .v-fine      { color: var(--expected); }
+  .v-expected  { color: var(--expected); }
+  .v-long      { color: var(--long); }
+  .v-attention { color: var(--attention); }
+  td.verdict { font-family: var(--mono); font-size: .82rem; }
+  .hi { color: var(--attention); font-weight: 600; }
+  .lo { color: var(--expected); }
+
+  /* ---------- sliders ---------- */
+  .controls { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1.25rem 1.4rem; }
+  .ctl { display: grid; grid-template-columns: 8.5rem 1fr 6.5rem; gap: 1rem; align-items: center; }
+  .ctl + .ctl { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .ctl-name { font-weight: 600; font-size: .9rem; }
+  .ctl-name small { display: block; font-weight: 400; color: var(--muted); font-size: .78rem; line-height: 1.4; }
+  .ctl input[type=range] { width: 100%; accent-color: var(--accent); }
+  .ctl-read { text-align: right; font-family: var(--mono); font-size: .85rem; }
+  .ctl-read b { font-size: 1.15rem; display: block; font-variant-numeric: tabular-nums; }
+  .ctl-read span { color: var(--muted); }
+
+  /* ---------- deep dive ---------- */
+  .dive { margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--line); }
+  .dive:first-of-type { border-top: 0; padding-top: 0; }
+  .pillrow { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+             font-family: var(--mono); font-size: .8rem; color: var(--muted); }
+  .pill { border: 1px solid currentColor; border-radius: 3px; padding: .1rem .45rem;
+          font-size: .72rem; letter-spacing: .09em; text-transform: uppercase; font-weight: 600; }
+  .dive h3 { font-family: var(--mono); font-size: 1.15rem; margin: .6rem 0 .7rem; font-weight: 600; }
+  .deltas { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .delta { font-family: var(--mono); font-size: .8rem; border: 1px solid var(--line);
+           border-radius: 3px; padding: .15rem .5rem; color: var(--muted); }
+  .delta.big { color: var(--attention); border-color: currentColor; }
+  .dive h4 { font-family: var(--mono); font-size: 10.5px; letter-spacing: .11em; text-transform: uppercase;
+             color: var(--muted); margin: 1.5rem 0 .6rem; font-weight: 500; }
+  .dive p { margin: 0; max-width: 68ch; }
+  .dive p + p { margin-top: .6rem; }
+
+  .load { display: inline-block; height: 7px; border-radius: 1px; background: var(--attention);
+          opacity: .75; vertical-align: middle; min-width: 2px; }
+
+  /* ---------- backlog ---------- */
+  .task { display: grid; grid-template-columns: 2.5rem 1fr auto; gap: 1rem; align-items: center;
+          padding: .95rem 1.15rem; border-bottom: 1px solid var(--line); }
+  .task:last-child { border-bottom: 0; }
+  .task-n { font-family: var(--mono); font-size: .82rem; color: var(--muted);
+            font-variant-numeric: tabular-nums; }
+  .task-t { font-weight: 600; font-size: .95rem; }
+  .task-m { font-family: var(--mono); font-size: .78rem; color: var(--muted); margin-top: .15rem; }
+
+  footer { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--line);
+           color: var(--muted); font-size: .82rem; }
+  footer code { font-family: var(--mono); }
+
+  @media (max-width: 760px) {
+    .split, .cols2 { grid-template-columns: 1fr; }
+    .head-row { flex-direction: column; gap: 1.25rem; }
+  }
+  @media (max-width: 620px) {
+    .ctl { grid-template-columns: 1fr; gap: .4rem; }
+    .ctl-read { text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="crumb">
+    <div><b id="c-repo"></b><span id="c-ref"></span></div>
+    <div class="kind" id="c-kind">Complexity report</div>
+  </div>
+
+  <header>
+    <div class="throwaway">Throwaway — regenerate, don't commit</div>
+    <div class="crumb hide" id="eyebrow-row"><div class="kind" id="c-eyebrow"></div></div>
+    <div class="head-row">
+      <div class="head-main">
+        <h1 id="title">Complexity report</h1>
+        <p class="lede" id="lede"></p>
+      </div>
+      <div class="grade hide" id="grade"><b id="grade-l"></b><span id="grade-c">Grade</span></div>
+    </div>
+  </header>
+
+  <div id="stats-sec" class="hide"><div class="stats" id="stats"></div></div>
+
+  <div id="dist-sec" class="hide">
+    <div class="split">
+      <div>
+        <h2 id="dist-title" style="margin-top:2.75rem">Distribution</h2>
+        <div class="dist" id="dist"></div>
+        <div id="dist-labels" style="display:flex;gap:.45rem"></div>
+        <p class="after-note" id="dist-caption"></p>
+      </div>
+      <div class="insight hide" id="insight" style="margin-top:2.75rem">
+        <div class="lbl" id="ins-lbl">Read this first</div>
+        <p class="lead" id="ins-lead"></p>
+        <p class="body" id="ins-body"></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="ex-sec" class="hide">
+    <h2>Two numbers, two questions</h2>
+    <div class="cols2" id="explainers"></div>
+  </div>
+
+  <div id="spec-sec" class="hide">
+    <div class="cols2" id="specimens" style="margin-top:1.5rem"></div>
+  </div>
+
+  <div id="bands-sec" class="hide">
+    <h2>Bands and verdicts</h2>
+    <div class="tblwrap"><table id="bands"></table></div>
+    <p class="after-note" id="bands-note"></p>
+  </div>
+
+  <div id="ctl-sec" class="hide">
+    <h2>Thresholds</h2>
+    <p class="sec-note">Drag to see how many functions a given limit would flag. The table below
+      filters to match.</p>
+    <div class="controls" id="controls"></div>
+  </div>
+
+  <div id="hot-sec" class="hide">
+    <h2>Hot spots</h2>
+    <p class="sec-note" id="hot-note"></p>
+    <div class="tblwrap"><table id="hot"></table></div>
+    <p class="after-note" id="hot-foot"></p>
+  </div>
+
+  <div id="dive-sec" class="hide">
+    <h2>Deep dives</h2>
+    <div id="dives"></div>
+  </div>
+
+  <div id="task-sec" class="hide">
+    <h2>What to pick up</h2>
+    <p class="sec-note" id="task-note"></p>
+    <div class="tblwrap" id="tasks"></div>
+  </div>
+
+  <footer id="footer"></footer>
+</div>
+
+<script type="application/json" id="data">__FINDINGS_JSON__</script>
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById("data").textContent);
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+  function show(id) { $(id).classList.remove("hide"); }
+  function has(v) { return v && (!v.length || v.length > 0); }
+
+  /* ---- masthead ---- */
+  $("c-repo").textContent = D.repo || "";
+  $("c-ref").textContent = D.ref ? "  /  " + D.ref : "";
+  if (D.kind) $("c-kind").textContent = D.kind;
+  if (D.eyebrow) { show("eyebrow-row"); $("c-eyebrow").textContent = D.eyebrow; }
+  $("title").textContent = D.headline || D.title || "Complexity report";
+  $("lede").textContent = D.lede || D.question || "";
+  if (D.grade && D.grade.letter) {
+    show("grade");
+    $("grade-l").textContent = D.grade.letter;
+    if (D.grade.caption) $("grade-c").textContent = D.grade.caption;
+  }
+
+  /* ---- stat strip ---- */
+  if (has(D.stats)) {
+    show("stats-sec");
+    $("stats").innerHTML = D.stats.map(function (s) {
+      return '<div class="stat ' + (s.tone ? "t-" + esc(s.tone) : "") + '">' +
+        '<div class="stat-l">' + esc(s.label) + "</div>" +
+        '<div class="stat-v">' + esc(s.value) + "</div>" +
+        (s.sub ? '<div class="stat-s">' + esc(s.sub) + "</div>" : "") + "</div>";
+    }).join("");
+  }
+
+  /* ---- distribution ---- */
+  if (D.distribution && has(D.distribution.buckets)) {
+    show("dist-sec");
+    var b = D.distribution.buckets;
+    var max = Math.max.apply(null, b.map(function (x) { return x.count; })) || 1;
+    if (D.distribution.title) $("dist-title").textContent = D.distribution.title;
+    $("dist").innerHTML = b.map(function (x) {
+      var t = x.tone ? "t-" + esc(x.tone) : "";
+      var h = Math.max(2, Math.round((x.count / max) * 68));
+      return '<figure class="' + t + '"><div class="bar" style="height:' + h + 'px"></div>' +
+        '<div class="dist-n">' + esc(x.count) + "</div></figure>";
+    }).join("");
+    $("dist-labels").innerHTML = b.map(function (x) {
+      return '<div class="dist-l" style="flex:1">' + esc(x.label) + "</div>";
+    }).join("");
+    $("dist-caption").textContent = D.distribution.caption || "";
+  }
+  if (D.insight && (D.insight.lead || D.insight.body)) {
+    show("insight");
+    if (D.insight.label) $("ins-lbl").textContent = D.insight.label;
+    $("ins-lead").textContent = D.insight.lead || "";
+    $("ins-body").textContent = D.insight.body || "";
+    show("dist-sec");
+  }
+
+  /* ---- explainers ---- */
+  if (has(D.explainers)) {
+    show("ex-sec");
+    $("explainers").innerHTML = D.explainers.map(function (e) {
+      return '<div class="ex"><h3>' + esc(e.term) + "</h3><p>" + esc(e.body) +
+        (e.answers ? " Answers <em>" + esc(e.answers) + "</em>" : "") + "</p></div>";
+    }).join("");
+  }
+
+  /* ---- specimens ---- */
+  if (has(D.specimens)) {
+    show("spec-sec");
+    $("specimens").innerHTML = D.specimens.map(function (s) {
+      return '<div class="code v-' + esc(s.verdict) + '">' +
+        '<div class="code-h"><span class="k">' + esc(s.verdict) +
+          (s.label ? " · " + esc(s.label) : "") + "</span></div>" +
+        "<pre>" + esc(s.code) + "</pre>" +
+        (s.note ? '<div class="cap">' + esc(s.note) + "</div>" : "") + "</div>";
+    }).join("");
+  }
+
+  /* ---- bands ---- */
+  if (has(D.bands)) {
+    show("bands-sec");
+    $("bands").innerHTML =
+      "<thead><tr><th>Verdict</th><th>Cyclomatic</th><th>Cognitive</th><th>Action</th></tr></thead><tbody>" +
+      D.bands.map(function (r) {
+        return "<tr><td class='m v-" + esc(r.verdict) + "'>" + esc(r.verdict) + "</td>" +
+          "<td class='m'>" + esc(r.cyc) + "</td><td class='m'>" + esc(r.cog) + "</td>" +
+          "<td>" + esc(r.action) + "</td></tr>";
+      }).join("") + "</tbody>";
+    $("bands-note").textContent = D.bandsNote || "";
+  }
+
+  /* ---- sliders + hot spots ---- */
+  var state = {};
+  var rows = D.findings || D.hotspots || [];
+  if (has(D.metrics) && has(rows)) {
+    show("ctl-sec"); show("hot-sec");
+    D.metrics.forEach(function (m) { state[m.key] = m.threshold; });
+    $("controls").innerHTML = D.metrics.map(function (m) {
+      var max = m.max || 40;
+      return '<div class="ctl"><label class="ctl-name" for="s-' + esc(m.key) + '">' + esc(m.label) +
+        (m.note ? "<small>" + esc(m.note) + "</small>" : "") + "</label>" +
+        '<input type="range" id="s-' + esc(m.key) + '" min="1" max="' + max + '" value="' +
+          m.threshold + '" aria-label="' + esc(m.label) + ' threshold">' +
+        '<div class="ctl-read"><b id="v-' + esc(m.key) + '"></b>' +
+          '<span id="c-' + esc(m.key) + '"></span></div></div>';
+    }).join("");
+    D.metrics.forEach(function (m) {
+      $("s-" + m.key).addEventListener("input", function (e) {
+        state[m.key] = +e.target.value; renderHot();
+      });
+    });
+    $("hot-note").textContent = D.hotspotsNote ||
+      "Every function past the watch line, worst reading cost first. Ratio is cognitive over cyclomatic: above 1.6 means nesting is the problem, below 0.9 means the function is wide but flat.";
+    $("hot-foot").textContent = D.hotspotsFootnote || "";
+  }
+
+  function ratioOf(f) {
+    var c = f.scores.cyclomatic, g = f.scores.cognitive;
+    return (typeof c === "number" && typeof g === "number" && c > 0) ? g / c : null;
+  }
+
+  function renderHot() {
+    D.metrics.forEach(function (m) {
+      $("v-" + m.key).textContent = state[m.key];
+      var n = rows.filter(function (f) {
+        return typeof f.scores[m.key] === "number" && f.scores[m.key] > state[m.key];
+      }).length;
+      $("c-" + m.key).textContent = n + " over";
+    });
+    var visible = rows.filter(function (f) {
+      return D.metrics.some(function (m) {
+        var v = f.scores[m.key];
+        return typeof v === "number" && v > state[m.key];
+      });
+    });
+    var sortKey = (D.metrics[1] || D.metrics[0]).key;
+    visible.sort(function (a, b) { return (b.scores[sortKey] || 0) - (a.scores[sortKey] || 0); });
+
+    var head = "<thead><tr><th>File</th><th>Function</th>" +
+      (rows.some(function (f) { return f.lang; }) ? "<th>Lang</th>" : "") +
+      D.metrics.map(function (m) { return '<th class="n">' + esc(m.short || m.key) + "</th>"; }).join("") +
+      '<th class="n">Ratio</th><th>Verdict</th></tr></thead>';
+
+    $("hot").innerHTML = head + "<tbody>" + (visible.length ? visible.map(function (f) {
+      var r = ratioOf(f);
+      var rcls = r == null ? "" : (r >= 1.6 ? "hi" : (r <= 0.9 ? "lo" : ""));
+      return "<tr><td class='m'>" + esc(f.file) + (f.line ? ":" + f.line : "") + "</td>" +
+        "<td class='fn'>" + esc(f.name) + "</td>" +
+        (rows.some(function (x) { return x.lang; }) ? "<td class='m'>" + esc(f.lang || "") + "</td>" : "") +
+        D.metrics.map(function (m) {
+          var v = f.scores[m.key];
+          if (typeof v !== "number") return "<td class='n'></td>";
+          var over = v > state[m.key];
+          return "<td class='n" + (over ? " v-" + esc(f.verdict) : "") + "'>" + v + "</td>";
+        }).join("") +
+        "<td class='n " + rcls + "'>" + (r == null ? "" : r.toFixed(2)) + "</td>" +
+        "<td class='verdict v-" + esc(f.verdict) + "'>" + esc(f.verdict) + "</td></tr>";
+    }).join("") : "<tr><td colspan='9' style='color:var(--muted)'>Nothing at these thresholds.</td></tr>") +
+    "</tbody>";
+  }
+
+  /* ---- deep dives ---- */
+  if (has(D.deepDives)) {
+    show("dive-sec");
+    $("dives").innerHTML = D.deepDives.map(function (d) {
+      var att = "";
+      if (d.attribution && has(d.attribution.rows)) {
+        var run = 0;
+        var computed = d.attribution.rows.map(function (r) {
+          run += (r.base || 0) + (r.nesting || 0);
+          return { r: r, running: run };
+        });
+        var maxRun = run || 1;
+        att = "<h4>" + esc(d.attribution.title || "Where the points came from") + "</h4>" +
+          '<div class="tblwrap"><table><thead><tr><th>Construct</th><th class="n">Depth</th>' +
+          '<th class="n">Base</th><th class="n">Nesting</th><th class="n">Running</th>' +
+          "<th>Load</th></tr></thead><tbody>" +
+          computed.map(function (c) {
+            var nest = c.r.nesting || 0;
+            return "<tr><td class='m'>" + esc(c.r.construct) + "</td>" +
+              "<td class='n'>" + (c.r.depth == null ? "—" : c.r.depth) + "</td>" +
+              "<td class='n'>+" + (c.r.base || 0) + "</td>" +
+              "<td class='n" + (nest >= 3 ? " hi" : "") + "'>+" + nest + "</td>" +
+              "<td class='n'>" + c.running + "</td>" +
+              "<td><span class='load' style='width:" +
+                Math.max(2, Math.round((c.running / maxRun) * 100)) + "px'></span></td></tr>";
+          }).join("") + "</tbody></table></div>" +
+          (d.attribution.note ? '<p class="after-note">' + esc(d.attribution.note) + "</p>" : "");
+      }
+      var codes = "";
+      if (d.before || d.after) {
+        codes = '<div class="cols2" style="margin-top:1.25rem">' +
+          [["before", d.before], ["after", d.after]].map(function (p) {
+            if (!p[1]) return "";
+            return '<div class="code"><div class="code-h"><span>' + p[0] +
+              "</span><span>" + esc(p[1].label || "") + "</span></div><pre>" +
+              esc(p[1].code) + "</pre></div>";
+          }).join("") + "</div>";
+      }
+      return '<div class="dive">' +
+        '<div class="pillrow"><span class="pill v-' + esc(d.verdict) + '">' + esc(d.verdict) + "</span>" +
+          "<span>" + esc(d.file) + (d.line ? ":" + d.line : "") + "</span>" +
+          (d.lang ? "<span>· " + esc(d.lang) + "</span>" : "") + "</div>" +
+        "<h3>" + esc(d.name) + "</h3>" +
+        (has(d.deltas) ? '<div class="deltas">' + d.deltas.map(function (x) {
+          var big = (x.from - x.to) >= 10;
+          return '<span class="delta' + (big ? " big" : "") + '">' + esc(x.metric) + " " +
+            x.from + " → " + x.to + "</span>";
+        }).join("") + "</div>" : "") +
+        (d.problem ? "<h4>The problem</h4><p>" + esc(d.problem) + "</p>" : "") +
+        codes +
+        (d.fix ? "<h4>The fix</h4><p>" + esc(d.fix) + "</p>" : "") +
+        att +
+      "</div>";
+    }).join("");
+  }
+
+  /* ---- backlog ---- */
+  if (D.backlog && has(D.backlog.items)) {
+    show("task-sec");
+    $("task-note").textContent = D.backlog.note || "";
+    $("tasks").innerHTML = D.backlog.items.map(function (t, i) {
+      var meta = [t.file, t.effort, t.caveat].filter(Boolean).join(" · ");
+      var big = (t.from - t.to) >= 10;
+      return '<div class="task"><div class="task-n">' + String(i + 1).padStart(2, "0") + "</div>" +
+        '<div><div class="task-t">' + esc(t.title) + "</div>" +
+        '<div class="task-m">' + esc(meta) + "</div></div>" +
+        (typeof t.from === "number"
+          ? '<span class="delta' + (big ? " big" : "") + '">' + t.from + " → " + t.to + "</span>"
+          : "") + "</div>";
+    }).join("");
+  }
+
+  var tools = (D.tools || []).map(function (t) {
+    return esc(t.name) + (t.setting ? " (<code>" + esc(t.setting) + "</code>)" : "");
+  }).join(", ");
+  $("footer").innerHTML = (tools ? "Measured with " + tools + ". " : "") +
+    "Thresholds are per-tool and not portable — the same code scores differently under different tools. " +
+    "Regenerate this page rather than editing it.";
+
+  if (has(D.metrics) && has(rows)) renderHot();
+})();
+</script>
+</body>
+</html>

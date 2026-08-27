@@ -1,0 +1,152 @@
+{
+  "skill_name": "code-complexity",
+  "evals": [
+    {
+      "id": 1,
+      "name": "switch-is-not-complex",
+      "prompt": "eslint's complexity rule is failing our build on this reducer - says complexity 14 and our max is 10. what's the cleanest way to refactor it?\n\n```ts\ntype Action =\n  | { type: \"add\"; item: Item }\n  | { type: \"remove\"; id: string }\n  | { type: \"clear\" }\n  | { type: \"setQty\"; id: string; qty: number }\n  | { type: \"applyCoupon\"; code: string }\n  | { type: \"removeCoupon\" }\n  | { type: \"setShipping\"; method: ShippingMethod }\n  | { type: \"setAddress\"; address: Address }\n  | { type: \"beginCheckout\" }\n  | { type: \"checkoutFailed\"; error: string }\n  | { type: \"checkoutSucceeded\"; orderId: string }\n  | { type: \"reset\" };\n\nfunction cartReducer(state: CartState, action: Action): CartState {\n  switch (action.type) {\n    case \"add\":\n      return { ...state, items: [...state.items, action.item] };\n    case \"remove\":\n      return { ...state, items: state.items.filter((i) => i.id !== action.id) };\n    case \"clear\":\n      return { ...state, items: [] };\n    case \"setQty\":\n      return { ...state, items: setQty(state.items, action.id, action.qty) };\n    case \"applyCoupon\":\n      return { ...state, coupon: action.code };\n    case \"removeCoupon\":\n      return { ...state, coupon: null };\n    case \"setShipping\":\n      return { ...state, shipping: action.method };\n    case \"setAddress\":\n      return { ...state, address: action.address };\n    case \"beginCheckout\":\n      return { ...state, status: \"pending\", error: null };\n    case \"checkoutFailed\":\n      return { ...state, status: \"failed\", error: action.error };\n    case \"checkoutSucceeded\":\n      return { ...state, status: \"done\", orderId: action.orderId };\n    case \"reset\":\n      return initialState;\n  }\n}\n```",
+      "expected_output": "A recommendation NOT to refactor. This is a dispatch table where cyclomatic complexity is a known-poor signal; the fix is ESLint's variant: \"modified\" (a whole switch counts as +1) or a disable comment with a written reason, not restructuring readable code.",
+      "files": [],
+      "expectations": [
+        "Identifies this as a multiway dispatch / switch-based dispatch table, the specific case where cyclomatic complexity is known to mislead.",
+        "Recommends NOT restructuring the reducer. The score of 14 is expected and honest about test effort - roughly one test per action - while saying nothing true about how hard the code is to read.",
+        "Names ESLint's `variant: \"modified\"` option as the config-level fix, and explains what it does: a whole switch counts as +1 regardless of case count, leaving every other construct unchanged.",
+        "Offers a per-function `eslint-disable-next-line complexity` carrying a written reason as the alternative to a config change, rather than a bare disable.",
+        "Explains the underlying reason rather than just asserting it: each branch is independent, uniform, and verifiable at a glance, so branch count is not tracking difficulty here.",
+        "Does not present splitting into a handler map, sub-reducers, or a strategy/lookup-table pattern as the recommended fix. Any such option, if raised at all, is raised to be rejected because it adds indirection without improving readability.",
+        "Notes the limit of the exemption: it stops applying if the individual case branches grow real complexity of their own, rather than presenting switches as permanently exempt.",
+        "If cognitive complexity is mentioned, correctly states that this reducer would score very low on it, since that metric credits a switch as a single readable shape."
+      ],
+      "signals": {
+        "present": [
+          "variant",
+          "modified",
+          "dispatch|multiway|switch",
+          "eslint-disable",
+          "14"
+        ],
+        "absent": [
+          "const handlers"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "name": "same-score-different-difficulty",
+      "prompt": "our gocyclo report puts both of these at 5. we're triaging refactor work for the sprint - which one should we actually look at first, or are they the same?\n\n```go\n// internal/pricing/band.go\nfunc WeightBand(grams int) string {\n\tif grams <= 0 {\n\t\treturn \"no weight\"\n\t}\n\tif grams < 1000 {\n\t\treturn \"light\"\n\t}\n\tif grams < 5000 {\n\t\treturn \"medium\"\n\t}\n\tif grams < 20000 {\n\t\treturn \"heavy\"\n\t}\n\treturn \"very heavy\"\n}\n\n// internal/billing/reconcile.go\nfunc UnmatchedTotals(ledgers []Ledger, refs []Ref) int64 {\n\tvar total int64\nOUTER:\n\tfor _, l := range ledgers {\n\t\tif l.Void {\n\t\t\tcontinue\n\t\t}\n\t\tfor _, r := range refs {\n\t\t\tif r.LedgerID == l.ID {\n\t\t\t\tcontinue OUTER\n\t\t\t}\n\t\t}\n\t\ttotal += l.AmountCents\n\t}\n\treturn total\n}\n```",
+      "expected_output": "They are not equally complex. UnmatchedTotals - nested loop with a labelled continue - is materially harder than the flat guard-clause ladder, and cyclomatic complexity cannot tell them apart because it is blind to nesting. Recommends gocognit and/or nestif, and triaging UnmatchedTotals first.",
+      "files": [],
+      "expectations": [
+        "States plainly that the two functions are NOT equally complex despite the identical cyclomatic score.",
+        "Identifies UnmatchedTotals - the nested loop with the labelled `continue OUTER` - as the harder of the two and the one to triage first.",
+        "Gives the reason: cyclomatic complexity counts branches and is blind to nesting depth, and nesting is most of what makes code hard to hold in your head.",
+        "States that WeightBand is fine as it stands and needs no refactoring work - a flat guard-clause ladder read top to bottom is about as simple as branching gets.",
+        "Recommends a metric that actually separates them: cognitive complexity via gocognit, and/or nesting depth via nestif.",
+        "Predicts the direction correctly - gocognit would score UnmatchedTotals materially higher than WeightBand, because it applies a nesting penalty and charges for the labelled jump.",
+        "Does not claim the labelled continue is inherently wrong or must be removed. The finding is that the function deserves attention first, not that a specific construct is banned."
+      ],
+      "signals": {
+        "present": [
+          "gocognit|cognitive",
+          "nestif|nesting",
+          "continue OUTER|label",
+          "UnmatchedTotals",
+          "WeightBand"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 3,
+      "name": "go-linter-layering",
+      "prompt": "setting up golangci-lint for our go monorepo, about 40 packages. what should i enable for complexity? nobody's been watching this so i expect it's pretty bad in places. i've seen gocyclo and cyclop mentioned and i'm not sure which to pick.",
+      "expected_output": "A .golangci.yml enabling gocyclo + gocognit + nestif + funlen with explicit thresholds, cyclop restricted to package-average only, test files excluded, and an explicit warning that the gocyclo/gocognit defaults of 30 gate nothing.",
+      "files": [],
+      "expectations": [
+        "Warns that golangci-lint's gocyclo and gocognit both default to min-complexity: 30 - roughly three times McCabe's recommendation - so enabling them without setting a value produces a clean report and false confidence.",
+        "Recommends gocognit alongside a cyclomatic linter, on the grounds that cyclomatic complexity says nothing about readability and cognitive complexity is the metric that does.",
+        "Answers the gocyclo-versus-cyclop question directly rather than deferring: gocyclo owns the per-function gate, and cyclop is worth adding only for its package-average check, which nothing else provides.",
+        "If it recommends both, sets cyclop's max-complexity deliberately high so cyclop does not re-report every function gocyclo already flagged. Two linters flagging the same function is how a complexity gate becomes noise.",
+        "Notes gocyclo's `//gocyclo:ignore` directive, or `//nolint:gocyclo` with a reason, as the exemption mechanism - the threshold is paired with an escape hatch rather than presented as an absolute.",
+        "Excludes test files from the complexity and length linters, since table-driven Go tests trip funlen and gocyclo routinely and restructuring them makes them worse.",
+        "Given 40 packages with no prior enforcement, recommends introducing the gate on new or changed code first rather than switching it on repo-wide, because a wall of findings gets the rule disabled.",
+        "Provides an actual .golangci.yml snippet with concrete numbers, not just prose advice.",
+        "If it recommends cyclop, mentions that it is lightly maintained compared to the alternatives rather than presenting all options as equally healthy."
+      ],
+      "signals": {
+        "present": [
+          "min-complexity",
+          "30",
+          "gocognit",
+          "gocyclo",
+          "cyclop",
+          "package-average|packageAverage",
+          "_test",
+          "nolint|gocyclo:ignore",
+          "linters"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 4,
+      "name": "threshold-and-exemption",
+      "prompt": "what should we set our max cyclomatic complexity to? python codebase, we use ruff, team of 6. just want a number we can put in pyproject.toml and stop arguing about it.",
+      "expected_output": "10, tied to ruff specifically, plus the two things the question misses: C901 is not in ruff's default rule set so the threshold may never run, and a threshold without an exemption mechanism is half a policy. Also recommends a readability metric alongside.",
+      "files": [],
+      "expectations": [
+        "Gives an actual number - 10 - rather than deflecting. The user asked to stop arguing about it and a real recommendation is the useful answer.",
+        "Ties the number to ruff specifically, and notes that ruff's lint.mccabe.max-complexity already defaults to 10, so the value itself often needs no change.",
+        "Flags that C901 is not in ruff's default rule selection: without adding it to select or extend-select, a configured max-complexity never actually runs. This is the gap that matters more than the number.",
+        "Pairs the threshold with an exemption mechanism - `# noqa: C901` carrying a written reason - rather than presenting a bare gate. A gate with no escape hatch gets either bad refactors or gets switched off.",
+        "Recommends at least one readability metric alongside the cyclomatic gate, most naturally PLR1702 for nesting depth, explaining that cyclomatic complexity sizes test effort rather than measuring how hard the code is to read.",
+        "Warns against carrying the number to other tools or languages, since different tools score the same code differently.",
+        "Shows the pyproject.toml configuration concretely, including both the extend-select entry and the mccabe settings block.",
+        "Does not present 10 as an empirically settled fact. The honest framing is that it is a defensible convention with mixed supporting evidence, not a proven optimum."
+      ],
+      "signals": {
+        "present": [
+          "10",
+          "C901",
+          "extend-select|select",
+          "noqa",
+          "mccabe|max-complexity",
+          "PLR1702|nest",
+          "pyproject"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 5,
+      "name": "report-from-linter-output",
+      "prompt": "ran these on our repo this morning. what should we actually fix? i've got maybe a day of cleanup budget before the release.\n\n```\n$ gocyclo -over 10 -ignore \"_test\" .\n18 wire     decodeFrame       internal/wire/decode.go:31:1\n14 billing  ApplyAdjustments  internal/billing/adjust.go:120:1\n12 report   BuildMonthly      internal/report/build.go:12:1\n11 billing  UnmatchedTotals   internal/billing/reconcile.go:88:1\nAverage: 3.1\n\n$ gocognit -over 10 -ignore \"_test\" .\n31 billing  UnmatchedTotals   internal/billing/reconcile.go:88:1\n19 billing  ApplyAdjustments  internal/billing/adjust.go:120:1\n11 report   BuildMonthly      internal/report/build.go:12:1\n 2 wire     decodeFrame       internal/wire/decode.go:31:1\n```",
+      "expected_output": "A prioritisation that leads with UnmatchedTotals (4th on cyclomatic, 1st on cognitive) and exempts decodeFrame (1st on cyclomatic, last on cognitive) as a dispatch table, plus a generated complexity-report.html grouping findings by verdict.",
+      "files": [],
+      "expectations": [
+        "Notices that the two rankings disagree and treats that disagreement as the most informative thing in the data, rather than reading down the cyclomatic list.",
+        "Names UnmatchedTotals as the top priority for the cleanup budget, despite it ranking fourth and last on cyclomatic complexity. Cognitive 31 against cyclomatic 11 is the signature of deep nesting, which is what actually costs a reader.",
+        "Identifies decodeFrame as expected rather than a defect. Highest cyclomatic score in the repo at 18 and a cognitive score of 2 is the signature of a flat dispatch table - branch count without difficulty - and it should be exempted, not refactored.",
+        "Recommends an exemption directive for decodeFrame (//gocyclo:ignore or //nolint:gocyclo with a reason) rather than restructuring it or raising the global threshold.",
+        "Generates a complexity-report.html file rather than only answering in prose, since a tool actually ran and there are real per-function scores to put in it.",
+        "The report groups findings by verdict - needs attention, expected, long - rather than presenting one table sorted by score. The classification is the part the linter could not do.",
+        "Each finding in the report carries a note saying what kind of complexity it is, not merely restating the number that is already displayed beside it.",
+        "The chat reply stays short and points at the generated page, rather than duplicating the whole findings table in the terminal.",
+        "Mentions adding complexity-report.html to .gitignore without editing .gitignore directly.",
+        "Does not fabricate scores for metrics that were not measured. Only cyclomatic and cognitive numbers exist here; nesting depth was never run, so no nesting column should be invented."
+      ],
+      "signals": {
+        "present": [
+          "UnmatchedTotals",
+          "decodeFrame",
+          "cognitive",
+          "complexity-report\\.html",
+          "gitignore",
+          "dispatch|switch|table",
+          "gocyclo:ignore|nolint"
+        ],
+        "absent": []
+      }
+    }
+  ]
+}

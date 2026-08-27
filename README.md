@@ -13,6 +13,7 @@ npx skills add newtonmunene99/skills
 Install a specific skill:
 
 ```bash
+npx skills add newtonmunene99/skills --skill code-complexity
 npx skills add newtonmunene99/skills --skill code-documentation
 npx skills add newtonmunene99/skills --skill git-code-review
 npx skills add newtonmunene99/skills --skill go-engineering
@@ -31,13 +32,14 @@ Supported agents include **Cursor**, **Codex**, **Claude Code**, **OpenCode**, *
 
 ## Skills
 
-| Skill                  | Directory                              | Description                                                                                                                                                                                 |
-| ---------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Skill                  | Directory                              | Description                                                                                                                                                                                                                                  |
+| ---------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **code-complexity**    | `skills/engineering/complexity/`       | Cyclomatic, cognitive, nesting and size metrics — what each is valid for, what threshold to set, how to configure ESLint, oxlint, gocyclo/cyclop/gocognit and ruff, plus a throwaway HTML findings report |
 | **code-documentation** | `skills/engineering/documentation/`    | Comments, API/symbol docs, READMEs, and [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) knowledge docs — per-language conventions (godoc, TSDoc, docstrings, dartdoc, proto) without touching behavior |
-| **git-code-review**    | `skills/engineering/code-review/`      | Reviewing diffs, commits, branches, and MR/PRs on any git host — GitHub not required. High-signal findings only                                                                             |
-| **go-engineering**     | `skills/engineering/go/`               | Performance optimization and idiomatic style for Go, from [goperf.dev](https://goperf.dev) and the [Google Go Style Guide](https://google.github.io/styleguide/go)                          |
-| **protocol-buffers**   | `skills/engineering/protocol-buffers/` | Protocol buffer design and resource-oriented API conventions, from [google.aip.dev](https://google.aip.dev/)                                                                                |
-| **python-engineering** | `skills/engineering/python/`           | Modern Python (3.11+) best practices — typing, dataclasses, pydantic v2, asyncio, pytest, ruff, uv — plus the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html) |
+| **git-code-review**    | `skills/engineering/code-review/`      | Reviewing diffs, commits, branches, and MR/PRs on any git host — GitHub not required. High-signal findings only                                                                                                                              |
+| **go-engineering**     | `skills/engineering/go/`               | Performance optimization and idiomatic style for Go, from [goperf.dev](https://goperf.dev) and the [Google Go Style Guide](https://google.github.io/styleguide/go)                                                                           |
+| **protocol-buffers**   | `skills/engineering/protocol-buffers/` | Protocol buffer design and resource-oriented API conventions, from [google.aip.dev](https://google.aip.dev/)                                                                                                                                 |
+| **python-engineering** | `skills/engineering/python/`           | Modern Python (3.11+) best practices — typing, dataclasses, pydantic v2, asyncio, pytest, ruff, uv — plus the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)                                                  |
 
 ## Repository structure
 
@@ -62,6 +64,21 @@ skills/
         │       ├── scope-resolution.md
         │       ├── merge-review.md
         │       └── reporting.md
+        ├── complexity/
+        │   ├── SKILL.md
+        │   ├── README.md
+        │   ├── LICENSE
+        │   ├── agents/
+        │   ├── assets/
+        │   │   └── report-template.html
+        │   ├── evals/
+        │   └── references/
+        │       ├── metrics.md
+        │       ├── thresholds.md
+        │       ├── javascript.md
+        │       ├── go.md
+        │       ├── python.md
+        │       └── report.md
         ├── documentation/
         │   ├── SKILL.md
         │   ├── README.md
@@ -102,13 +119,6 @@ skills/
 ```
 
 Skills are grouped by category under `skills/`. Each skill directory contains a `SKILL.md` (the agent-readable skill definition) and optional reference files, evals, and agent-specific config.
-
-## Previous repositories
-
-These skills were previously published as standalone repos:
-
-- [newtonmunene99/goperf-skill](https://skills.sh/newtonmunene99/goperf-skill) (now `go-engineering`)
-- [newtonmunene99/aip-protocol-buffers-skill](https://skills.sh/newtonmunene99/aip-protocol-buffers-skill) (now `protocol-buffers`)
 
 ## License
 
