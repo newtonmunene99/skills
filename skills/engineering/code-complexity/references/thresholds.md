@@ -177,3 +177,22 @@ When a project already has one configured, ask in this order:
    with no comment is the same as no gate, minus the honesty.
 4. **Is anything measuring readability?** If cyclomatic complexity is the only metric
    configured, the project is gating test effort and calling it maintainability.
+
+Those four questions land the gate in one of three states, and the review should say
+which:
+
+| State | What it looks like | What to do |
+| ----- | ------------------ | ---------- |
+| **Missing** | No complexity rule configured, or one configured but never selected — ruff's `C901` left out of `select` is the common case | Recommend the tool and the threshold, with the config block |
+| **Not biting** | `max: 20`, `min-complexity: 30`, cyclomatic-only, or no exemption mechanism | Say it does not fire, show the current value against the suggested one, propose the diff |
+| **Considered** | Number fits the tool, it fires, readability is measured, exemptions carry reasons | Measure against it; do not relitigate the number |
+
+The distinction that matters is **missing versus not biting**, because the second one
+looks like compliance. A team with `gocyclo` in their `.golangci.yml` believes they
+have a complexity gate. At the default they have a line item.
+
+In the first two states, **give the configuration, not only the number.** The
+per-language *Recommended config* sections — [go.md](go.md#recommended-golangci-lint-config),
+[javascript.md](javascript.md#recommended-config), [python.md](python.md#recommended-config)
+— exist to be pasted into the reply. Naming a number and leaving the reader to work
+out where it goes is the difference between a recommendation and a change.

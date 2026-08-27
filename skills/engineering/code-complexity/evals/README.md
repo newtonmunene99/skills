@@ -17,7 +17,7 @@ skill; it's measuring the model.
 
 | File | Purpose |
 | ---- | ------- |
-| `evals.json` | The 5 eval prompts and their expectations (what the grader checks) |
+| `evals.json` | The 8 eval prompts and their expectations (what the grader checks) |
 | `prepare_workspace.py` | Builds the workspace directory layout and `eval_metadata.json` from `evals.json` |
 | `run_benchmark.sh` | Aggregates grading results and opens the review viewer |
 

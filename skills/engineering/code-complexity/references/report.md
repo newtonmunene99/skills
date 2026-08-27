@@ -1,10 +1,17 @@
 # The HTML report
 
-A complexity review produces numbers, and numbers in terminal scrollback are close to
-useless — they cannot be sorted, shared, or explored. So a review that ran a real
-tool and has real per-function scores also writes a **single self-contained HTML
+A complexity review produces numbers, and a long table of them in terminal scrollback
+is close to useless — it cannot be sorted, shared, or explored. So a review that ran a
+real tool and has real per-function scores also writes a **single self-contained HTML
 page**: throwaway, double-clickable, and readable by someone who is never going to
 open a terminal.
+
+**The page is the second copy, not the deliverable.** The findings go in the reply —
+what matters, what to do about it, what the gate should be — because the caller is
+usually an agent deciding what to act on or what to put to the user, and it cannot
+read an HTML file on their behalf. The page renders the same findings at full width
+for a human. Generate it by default; drop it the moment the user says they do not want
+one; never let its existence shorten the reply below the findings themselves.
 
 ## Contents
 
@@ -14,6 +21,7 @@ open a terminal.
 - [Every section is optional](#every-section-is-optional)
 - [The data shape](#the-data-shape)
 - [Verdicts are the point](#verdicts-are-the-point)
+- [The gate section](#the-gate-section)
 - [The ratio column](#the-ratio-column)
 - [Score attribution](#score-attribution)
 - [Deep dives](#deep-dives)
@@ -34,9 +42,17 @@ Skip it when there is nothing to put in it:
 - No linter is installed and none could be run, so the numbers would be guesses.
 - The review covered a handful of functions the user is already looking at.
 
-When you do write one, **keep the terminal answer short** and point at the page. The
-page carries the table; the reply carries the verdict and the recommendation. Saying
-it twice wastes the reader's attention.
+And skip it whenever **the user says they do not want one** — "no html", "just tell
+me", "don't write files", "terminal only". It is a default, not a requirement. Skipping
+the page changes nothing about the findings: they are still reported in full, with the
+gate recommendation, in the reply. Do not ask permission first in the ordinary case;
+generating it is the default and saying where it went is enough.
+
+When you do write one, **do not repeat the table in the reply**. The page carries the
+per-function rows; the reply carries the findings that matter, the verdicts, and the
+recommendation. Cutting the reply down to a pointer at the file is the opposite error
+and the more damaging one — an agent that reads only the reply has to be able to
+decide from it.
 
 ## Where it goes
 
@@ -95,7 +111,7 @@ a one-off page.
 
 ## Every section is optional
 
-The template renders eleven sections, and **each one disappears when its data is
+The template renders twelve sections, and **each one disappears when its data is
 absent**. That is deliberate: the same file serves a two-minute triage and a full
 repo audit.
 
@@ -112,12 +128,17 @@ repo audit.
 | `metrics` + `findings` | threshold sliders + hot spots table |
 | `deepDives` | per-function deep dives |
 | `backlog` | prioritised work queue |
+| `gate` | the linter config verdict and the proposed change |
 
 Scale the report to what you actually know:
 
 - **Quick triage** — masthead, `metrics`, `findings`. Nothing else.
 - **Standard review** — add `stats`, `insight`, `bands`.
 - **Full audit** — everything, including one or two `deepDives`.
+
+`gate` is the exception to "scale to what you know": include it at every size whenever
+the project's complexity gate is missing or not firing, because that finding does not
+get smaller when the review does.
 
 Do not pad. A histogram over six functions or a backlog of one item is worse than
 omitting the section, because it implies a breadth of analysis that did not happen.
@@ -206,6 +227,15 @@ Only `metrics` and `findings` are needed for a usable page. Everything else is a
       { "title": "Split Reconcile into per-order stages", "file": "billing/reconcile.go",
         "effort": "~2h", "caveat": "needs new tests", "from": 29, "to": 4 }
     ]
+  },
+
+  "gate": {
+    "status": "toothless",
+    "tool": ".golangci.yml · gocyclo",
+    "summary": "gocyclo is enabled at min-complexity: 30 — the tool's own default and three times McCabe's number. It flags one function in this repo. Nothing measures readability at all.",
+    "current": { "label": "today", "code": "linters-settings:\n  gocyclo:\n    min-complexity: 30" },
+    "proposed": { "label": "fires on 39 functions", "code": "linters-settings:\n  gocyclo:\n    min-complexity: 15\n  gocognit:\n    min-complexity: 20\n  nestif:\n    min-complexity: 5" },
+    "note": "Gate the diff first — switching this on repo-wide produces 39 findings and the rule gets disabled inside a week. Exempt with //nolint:gocyclo carrying a reason."
   }
 }
 ```
@@ -224,6 +254,11 @@ Notes on the fields:
 - **`scores`** — omit a metric rather than writing `0` or `null`. A missing score
   renders an empty cell, which reads correctly as "not measured".
 - **`grade`** — see the caution under [Rules](#rules).
+- **`gate.status`** — one of `missing`, `toothless`, `sound`. It sets the pill and its
+  colour; `sound` reads green, the other two read as attention.
+- **`gate.current` / `gate.proposed`** — either, both, or neither. Two render side by
+  side as a diff a reader can act on; one renders full width. Omit `current` when there
+  is no config to show, which is the `missing` case.
 
 ## Verdicts are the point
 
@@ -246,6 +281,36 @@ The `bands` table is where the taxonomy gets explained — once, with its numeri
 ranges and the action each verdict implies. Include it whenever the report carries
 more than a handful of findings, so a reader can audit the classification rather than
 taking it on trust.
+
+## The gate section
+
+Every other section describes code that is already written. This one describes what is
+configured to catch the next batch, and it is the only part of the page with a shelf
+life longer than the review.
+
+Include it whenever the project's complexity gate is **missing** or **not firing** —
+the two states defined in
+[thresholds.md](thresholds.md#reviewing-an-existing-threshold). Include it for a
+`sound` gate too when it is worth confirming out loud that the numbers on this page
+were measured against the team's own threshold rather than one you picked. Omit it only
+when the review had no repository context to inspect — a pasted snippet, a conceptual
+question.
+
+Three things make it useful rather than decorative:
+
+1. **Say what the current config actually does**, in functions. "`min-complexity: 30`
+   flags one function in this repo; at 15 it flags 39" is an argument. "The threshold
+   is too high" is an opinion.
+2. **Show the config, not the number.** `current` and `proposed` render side by side
+   precisely so the change is a diff someone can paste. A number with no file to put it
+   in is where the recommendation dies.
+3. **Carry the rollout caveat in `note`.** Turning a real threshold on across an
+   existing repo produces a wall of findings and the rule gets disabled within a week.
+   Gate the diff first. This sentence is what makes the recommendation survivable, and
+   it is the one most often left out.
+
+The section is a **proposal, like the deep dives' `after` code**. This skill does not
+write linter config. Phrase it as the change to make, and let the user decide.
 
 ## The ratio column
 
@@ -370,10 +435,14 @@ because that is the sentence the reader will paste into a `//nolint` comment.
    web fonts. It has to survive being emailed and opened by double-click.
 2. **Marked throwaway, and actually throwaway.** The template carries the badge.
    Regenerate rather than edit; never commit it.
-3. **Never let it be the only output.** A user who reads only the terminal reply
-   should still get the verdict and the recommendation.
+3. **Never let it be the only output.** The reply is the deliverable and the page is a
+   copy of it. Someone — or some agent — who reads only the reply must still get the
+   findings that matter, the verdict on each, and the gate recommendation. "Wrote
+   `complexity-report.html`" is not a report.
 4. **No CI wiring.** This is a page for a human to look at once, not a quality gate.
-   The gate is the linter config; recommend that instead.
+   The gate is the linter config — recommend it in the
+   [gate section](#the-gate-section) and in the reply, and leave applying it to the
+   user.
 5. **Do not edit the project to accommodate it.** No `.gitignore` edits, no npm
    scripts, no Makefile targets. Say what would help and let the user decide.
 6. **Do not fabricate scores.** Every number on the page comes from a tool that
