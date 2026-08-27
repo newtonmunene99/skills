@@ -40,11 +40,33 @@ it twice wastes the reader's attention.
 
 ## Where it goes
 
-`./complexity-report.html` at the repository root.
+The file is always named `complexity-report.html`. Where it lands is the question,
+and the answer is wherever the reader will go looking for it. Resolve in this order
+and stop at the first match:
 
-Then check `.gitignore`. If `complexity-report.html` is not covered, **tell the user
-to add it** — do not edit `.gitignore` yourself, since this skill does not modify
-project files. One line in the reply is enough:
+1. **A path the user named.** Explicit beats inferred. Keep the filename they gave,
+   if they gave one.
+2. **The root of what was scanned**, when that is a single directory and it is not
+   the working directory. Asked to review `~/work/other-repo`, or `packages/api`
+   inside the current one, the report belongs at the top of that scope — next to the
+   code it describes.
+3. **The working directory.** The default: the scan covered the cwd itself, or spread
+   across several directories with no single root to sit at the top of.
+
+The trap is rule 2 sliding into "the enclosing repository root". It does not. A scan
+of `packages/api` writes to `packages/api/`, not to the repo root three levels up.
+The repo root is only ever right when it *is* the scanned root or *is* the working
+directory — never because it is the repo root.
+
+Once resolved, write it with a relative path where you can (`./complexity-report.html`
+in the common case) rather than an absolute one you assembled by hand.
+
+Say where it went in the reply, as a path the user can click.
+
+If the report lands inside a git repository, check `.gitignore`. If
+`complexity-report.html` is not covered, **tell the user to add it** — do not edit
+`.gitignore` yourself, since this skill does not modify project files. One line in
+the reply is enough:
 
 > Wrote `complexity-report.html`. Worth adding to `.gitignore` — it's throwaway and
 > regenerating is cheap.
@@ -60,7 +82,7 @@ live threshold sliders. Read it, build the data object, and substitute.
 ```
 1. Read assets/report-template.html
 2. Replace the single placeholder __FINDINGS_JSON__ with your JSON
-3. Write the result to ./complexity-report.html
+3. Write the result to complexity-report.html, at the location resolved above
 ```
 
 The placeholder sits inside `<script type="application/json" id="data">`. Emit
