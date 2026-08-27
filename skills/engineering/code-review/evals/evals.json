@@ -1,0 +1,93 @@
+{
+  "skill_name": "git-code-review",
+  "evals": [
+    {
+      "id": 1,
+      "name": "merge-review-high-signal",
+      "prompt": "About to merge `feat/cache-ttl` into `main`. Can you review it before I do?\n\n```\n$ git log --oneline main..feat/cache-ttl\n9a1c4e2 cache: expire entries on read\n41b8d70 billing: add percentage discount to Total\nc3f9a15 billing: add ApplyCredit\n```\n\n```diff\ndiff --git a/internal/billing/invoice.go b/internal/billing/invoice.go\nindex 3f2a1b4..9c8d7e2 100644\n--- a/internal/billing/invoice.go\n+++ b/internal/billing/invoice.go\n@@ -8,16 +8,29 @@ type LineItem struct {\n \tUnitCents int64\n }\n\n-func Total(items []LineItem) int64 {\n-\tvar sum int64\n-\tfor _, it := range items {\n-\t\tsum += int64(it.Quantity) * it.UnitCents\n-\t}\n-\treturn sum\n-}\n+func Total( items []LineItem, discountPct int ) int64 {\n+\tvar sum int64\n+\tfor i := 0; i < len(items); i++ {\n+\t\tsum += int64(items[i].Quantity) * items[i].UnitCents\n+\t}\n+\tif discountPct > 0 {\n+\t\tsum -= sum * int64(discountPct) / 100\n+\t}\n+\treturn sum\n+}\n+\n+func ApplyCredit(total int64, credits []Credit) int64 {\n+\tr := total\n+\tfor _, c := range credits {\n+\t\tr -= c.AmountCents\n+\t}\n+\treturn r\n+}\n\n func LegacyTotal(items []LineItem) int64 {\n-\treturn Total(items)\n+\treturn Total(items, 0)\n }\ndiff --git a/internal/cache/cache.go b/internal/cache/cache.go\nindex 7d2e881..b41a09c 100644\n--- a/internal/cache/cache.go\n+++ b/internal/cache/cache.go\n@@ -21,6 +21,22 @@ func (c *Cache) Set(key string, e Entry) {\n \tc.items[key] = e\n \tc.mu.Unlock()\n }\n+\n+func (c *Cache) Get(key string) (Entry, bool) {\n+\tc.mu.RLock()\n+\te, ok := c.items[key]\n+\tc.mu.RUnlock()\n+\tif !ok {\n+\t\treturn Entry{}, false\n+\t}\n+\tif time.Now().After(e.ExpiresAt) {\n+\t\tc.mu.RLock()\n+\t\tdelete(c.items, key)\n+\t\tc.mu.RUnlock()\n+\t\treturn Entry{}, false\n+\t}\n+\treturn e, true\n+}\n```",
+      "expected_output": "A merge review flagging the delete-under-RLock data race in Cache.Get as the one blocking issue, using the merge-review output template with a base -> head header and a Request changes verdict, and explicitly not flagging the gofmt spacing, the C-style loop, the short variable names, or the unchanged LegacyTotal.",
+      "files": [],
+      "expectations": [
+        "Flags that Cache.Get calls delete(c.items, key) while holding only a read lock (RLock), which is a concurrent map write and a data race - it needs the full Lock. This is the one genuinely blocking defect in the diff.",
+        "The finding cites the file and an approximate line, in the form internal/cache/cache.go:<line>, rather than describing the problem in the abstract.",
+        "The review uses the merge-review output template: a header line carrying the base and head refs and the commit count, a short summary, and an Issues list.",
+        "The verdict is Request changes, since a data race is a Critical finding.",
+        "Does NOT flag the spacing in `func Total( items []LineItem, discountPct int )`. gofmt catches it, and linter-catchable findings are explicitly out of scope for a merge review.",
+        "Does NOT flag the C-style `for i := 0; i < len(items); i++` loop as needing to be a range loop. That is a pedantic nitpick a senior engineer would skip.",
+        "Does NOT flag the short variable names `e`, `r` and `c` as needing to be longer. Style not codified in a project guideline is out of scope.",
+        "Does NOT flag LegacyTotal, whose only change is the mechanical call-site update forced by the new Total signature.",
+        "Does NOT report an inflated finding count. A review that lists the race alongside four or five style observations has missed the point of the high-signal bar, even if the race is listed first."
+      ],
+      "signals": {
+        "present": [
+          "RLock|read lock",
+          "delete",
+          "race|concurrent map write|concurrent write",
+          "cache\\.go",
+          "Request changes",
+          "main|Base:"
+        ],
+        "absent": [
+          "### Suggestions",
+          "### Positive notes"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "name": "no-github-fallback",
+      "prompt": "we're on self-hosted gitlab (gitlab.acme-internal.com) and glab isn't installed - IT won't let me install it either. i've got MR !284 open off branch feat/webhook-retries and i want it reviewed before i merge. can you do anything with that or am i stuck?",
+      "expected_output": "Proceeds with pure git: fetches the refs, detects or asks for the base branch, runs a three-dot diff against feat/webhook-retries, and substitutes git log subject lines for the unavailable MR description. Does not treat the missing CLI as a blocker.",
+      "files": [],
+      "expectations": [
+        "Answers that the review can go ahead without glab, rather than treating the missing platform CLI as a blocker. The user asked whether they are stuck; the answer is no.",
+        "Uses git as the source of truth, naming concrete commands - git fetch, git log, git diff - to obtain the changes.",
+        "Uses the three-dot form `git diff <base>...feat/webhook-retries` rather than two-dot, so that commits landing on the base branch after the divergence point are not misread as reversions in the MR.",
+        "Fetches the refs first (git fetch origin ...) since local copies of the base and head may be stale.",
+        "Determines the base branch rather than assuming it: either by resolving git symbolic-ref refs/remotes/origin/HEAD, or by asking the user once. It does not silently guess.",
+        "Addresses the missing MR title and description explicitly - offering to use git log subject lines and the branch name as a substitute, or asking the user to paste the description.",
+        "Does not suggest gh or any GitHub-specific command. The remote is a self-hosted GitLab instance.",
+        "Does not insist the user install glab, having been told they cannot."
+      ],
+      "signals": {
+        "present": [
+          "git diff",
+          "\\.\\.\\.",
+          "git fetch",
+          "git log",
+          "symbolic-ref|origin/HEAD|default branch|base branch",
+          "feat/webhook-retries"
+        ],
+        "absent": [
+          "gh pr "
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "name": "scope-resolution-author-and-time",
+      "prompt": "can you look over everything i've pushed this week? been heads down on the payments refactor and i want a second pair of eyes on it before standup tomorrow. no idea how many commits it ended up being, quite a few i think.",
+      "expected_output": "Resolves 'me' from git config rather than asking, filters history with --since and --author, plans for the many-commit case by reviewing the net diff with targeted deep dives, and treats this as a full-feedback history review rather than a high-signal merge review.",
+      "files": [],
+      "expectations": [
+        "Resolves who 'i' is from the repository itself - git config user.email, falling back to user.name - rather than asking the user to identify themselves.",
+        "Filters by time using --since with a one-week window, e.g. git log --since=\"1 week ago\".",
+        "Combines the time filter with --author using the resolved identity, rather than reviewing every author's commits from the week.",
+        "Plans to list the commits included in the review header, so the user can confirm the scope matches what they actually pushed.",
+        "Handles the user's 'quite a few' explicitly: for more than about five commits, summarise the log and review the net diff with deep dives on the risky commits, rather than walking every commit individually.",
+        "Treats this as a history review with full feedback - Critical, Warnings and Suggestions - rather than applying the high-signal-only bar that merge reviews use.",
+        "Does not ask which branch to compare against or try to resolve a base branch. This is history filtered by author and date, not a branch-vs-base merge review."
+      ],
+      "signals": {
+        "present": [
+          "git config user\\.email|git config user\\.name",
+          "--since",
+          "1 week ago",
+          "--author",
+          "git log"
+        ],
+        "absent": []
+      }
+    }
+  ]
+}
