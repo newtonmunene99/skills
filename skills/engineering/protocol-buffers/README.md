@@ -2,8 +2,6 @@
 
 An [Agent Skill](https://skills.sh/) for designing and working with protocol buffers and resource-oriented APIs, based on [Google API Improvement Proposals (AIPs)](https://google.aip.dev/).
 
-Previously published as [newtonmunene99/aip-protocol-buffers-skill](https://skills.sh/newtonmunene99/aip-protocol-buffers-skill), now part of [newtonmunene99/skills](https://skills.sh/newtonmunene99/skills).
-
 ## What it covers
 
 ### AIP Guidelines (google.aip.dev)
