@@ -59,9 +59,10 @@ covered in step 5.
    Never a bare number.
 5. **Write the report.** Whenever a tool actually ran and there are per-function
    scores, generate `./complexity-report.html` from `assets/report-template.html` —
-   a single self-contained page with live threshold sliders and findings grouped by
-   verdict. Keep the terminal reply short and point at it. Skip the page for purely
-   conceptual questions where nothing was measured. See
+   a single self-contained page with live threshold sliders and a hot-spots table
+   carrying a cognitive-over-cyclomatic ratio and a verdict per finding. Keep the
+   terminal reply short and point at it. Skip the page for purely conceptual
+   questions where nothing was measured. See
    [references/report.md](references/report.md).
 
 ## When to Read Which Reference
