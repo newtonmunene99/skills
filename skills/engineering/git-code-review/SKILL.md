@@ -10,6 +10,10 @@ description: >-
   asked to review changes, a branch, a commit, a range, someone's recent work,
   or an MR/PR, and before merging.
 disable-model-invocation: false
+compatibility: >-
+  Requires git. Platform CLIs (gh, glab) are optional extras — reviews fall
+  back to git diff on any host. Judgement-heavy: most of the value is in the
+  findings it declines to make, so it benefits from a high-reasoning model.
 model: best
 effort: xhigh
 ---

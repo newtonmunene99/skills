@@ -10,6 +10,11 @@ description: >-
   linter, decide what threshold to set, interpret a complexity report, or judge
   whether a high-scoring function actually needs refactoring.
 disable-model-invocation: false
+compatibility: >-
+  Runs the project's own linters when installed (ESLint or oxlint, gocyclo,
+  gocognit, golangci-lint, ruff) and recommends configuration when not.
+  Judgement-heavy: the value is in classifying findings rather than counting
+  them, so it benefits from a high-reasoning model.
 model: best
 effort: xhigh
 ---

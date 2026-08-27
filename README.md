@@ -33,13 +33,13 @@ Supported agents include **Cursor**, **Codex**, **Claude Code**, **OpenCode**, *
 ## Skills
 
 | Skill                  | Directory                              | Description                                                                                                                                                                                                                                  |
-| ---------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **code-complexity**    | `skills/engineering/complexity/`       | Cyclomatic, cognitive, nesting and size metrics — what each is valid for, what threshold to set, how to configure ESLint, oxlint, gocyclo/cyclop/gocognit and ruff, plus a throwaway HTML findings report |
-| **code-documentation** | `skills/engineering/documentation/`    | Comments, API/symbol docs, READMEs, and [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) knowledge docs — per-language conventions (godoc, TSDoc, docstrings, dartdoc, proto) without touching behavior |
-| **git-code-review**    | `skills/engineering/code-review/`      | Reviewing diffs, commits, branches, and MR/PRs on any git host — GitHub not required. High-signal findings only                                                                                                                              |
-| **go-engineering**     | `skills/engineering/go/`               | Performance optimization and idiomatic style for Go, from [goperf.dev](https://goperf.dev) and the [Google Go Style Guide](https://google.github.io/styleguide/go)                                                                           |
-| **protocol-buffers**   | `skills/engineering/protocol-buffers/` | Protocol buffer design and resource-oriented API conventions, from [google.aip.dev](https://google.aip.dev/)                                                                                                                                 |
-| **python-engineering** | `skills/engineering/python/`           | Modern Python (3.11+) best practices — typing, dataclasses, pydantic v2, asyncio, pytest, ruff, uv — plus the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)                                                  |
+| ---------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **code-complexity**    | `skills/engineering/code-complexity/`    | Cyclomatic, cognitive, nesting and size metrics — what each is valid for, what threshold to set, how to configure ESLint, oxlint, gocyclo/cyclop/gocognit and ruff, plus a throwaway HTML findings report |
+| **code-documentation** | `skills/engineering/code-documentation/` | Comments, API/symbol docs, READMEs, and [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) knowledge docs — per-language conventions (godoc, TSDoc, docstrings, dartdoc, proto) without touching behavior |
+| **git-code-review**    | `skills/engineering/git-code-review/`    | Reviewing diffs, commits, branches, and MR/PRs on any git host — GitHub not required. High-signal findings only                                                                                                                              |
+| **go-engineering**     | `skills/engineering/go-engineering/`     | Performance optimization and idiomatic style for Go, from [goperf.dev](https://goperf.dev) and the [Google Go Style Guide](https://google.github.io/styleguide/go)                                                                           |
+| **protocol-buffers**   | `skills/engineering/protocol-buffers/`   | Protocol buffer design and resource-oriented API conventions, from [google.aip.dev](https://google.aip.dev/)                                                                                                                                 |
+| **python-engineering** | `skills/engineering/python-engineering/` | Modern Python (3.11+) best practices — typing, dataclasses, pydantic v2, asyncio, pytest, ruff, uv — plus the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)                                                  |
 
 ## Repository structure
 
@@ -54,17 +54,7 @@ skills/
 │   └── validate-skills.sh
 └── skills/
     └── engineering/
-        ├── code-review/
-        │   ├── SKILL.md
-        │   ├── README.md
-        │   ├── LICENSE
-        │   ├── agents/
-        │   ├── evals/
-        │   └── references/
-        │       ├── scope-resolution.md
-        │       ├── merge-review.md
-        │       └── reporting.md
-        ├── complexity/
+        ├── code-complexity/
         │   ├── SKILL.md
         │   ├── README.md
         │   ├── LICENSE
@@ -79,7 +69,7 @@ skills/
         │       ├── go.md
         │       ├── python.md
         │       └── report.md
-        ├── documentation/
+        ├── code-documentation/
         │   ├── SKILL.md
         │   ├── README.md
         │   ├── LICENSE
@@ -90,7 +80,17 @@ skills/
         │       ├── api-docs.md
         │       ├── readmes.md
         │       └── okf.md
-        ├── go/
+        ├── git-code-review/
+        │   ├── SKILL.md
+        │   ├── README.md
+        │   ├── LICENSE
+        │   ├── agents/
+        │   ├── evals/
+        │   └── references/
+        │       ├── scope-resolution.md
+        │       ├── merge-review.md
+        │       └── reporting.md
+        ├── go-engineering/
         │   ├── SKILL.md
         │   ├── README.md
         │   ├── LICENSE
@@ -107,7 +107,7 @@ skills/
         │   ├── evals/
         │   └── references/
         │       └── aip/
-        └── python/
+        └── python-engineering/
             ├── SKILL.md
             ├── README.md
             ├── LICENSE

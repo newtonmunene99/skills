@@ -19,7 +19,7 @@ This directory contains test cases for the go-engineering skill and instructions
 The workspace is a **sibling** of the skill directory:
 
 ```
-go/                        # skill root
+go-engineering/                        # skill root
 go-engineering-workspace/    # workspace (created by prepare_workspace.py)
 └── iteration-1/
     ├── eval-1/
