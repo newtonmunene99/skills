@@ -1,0 +1,5 @@
+interface:
+  display_name: "Code Complexity"
+  short_description: "Complexity metrics, thresholds & linters"
+  brand_color: "#8B5CF6"
+  default_prompt: "Use $code-complexity to review this repo's complexity hot spots and recommend linter thresholds."
