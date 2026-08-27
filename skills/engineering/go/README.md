@@ -2,8 +2,6 @@
 
 An [Agent Skill](https://skills.sh/) for writing performant, idiomatic, and readable Go code, based on the [Go Optimization Guide](https://goperf.dev) and the [Google Go Style Guide](https://google.github.io/styleguide/go).
 
-Previously published as [newtonmunene99/goperf-skill](https://skills.sh/newtonmunene99/goperf-skill), now part of [newtonmunene99/skills](https://skills.sh/newtonmunene99/skills).
-
 ## What it covers
 
 ### Performance (goperf.dev)
