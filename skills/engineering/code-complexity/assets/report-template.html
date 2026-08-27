@@ -274,6 +274,14 @@
     <div class="tblwrap" id="tasks"></div>
   </div>
 
+  <div id="gate-sec" class="hide">
+    <h2>The gate</h2>
+    <div class="pillrow"><span class="pill" id="gate-status"></span><span id="gate-tool"></span></div>
+    <p class="sec-note" id="gate-summary" style="margin-top:.9rem"></p>
+    <div id="gate-code"></div>
+    <p class="after-note" id="gate-note"></p>
+  </div>
+
   <footer id="footer"></footer>
 </div>
 
@@ -537,6 +545,31 @@
           ? '<span class="delta' + (big ? " big" : "") + '">' + t.from + " → " + t.to + "</span>"
           : "") + "</div>";
     }).join("");
+  }
+
+  /* ---- the gate ----
+     What is configured to catch this next time. A report that lists findings and
+     says nothing about the gate invites the same findings again next sprint. */
+  if (D.gate && (D.gate.summary || D.gate.proposed || D.gate.current)) {
+    show("gate-sec");
+    var g = D.gate;
+    var gtone = g.status === "sound" ? "expected" : "attention";
+    var glabel = { missing: "no gate", toothless: "does not fire", sound: "considered" };
+    var gpill = $("gate-status");
+    gpill.textContent = glabel[g.status] || g.status || "gate";
+    gpill.className = "pill v-" + gtone;
+    $("gate-tool").textContent = g.tool || "";
+    $("gate-summary").textContent = g.summary || "";
+    var panels = [["current", g.current, gtone], ["proposed", g.proposed, "expected"]]
+      .filter(function (x) { return x[1]; });
+    $("gate-code").innerHTML = panels.length
+      ? '<div class="' + (panels.length > 1 ? "cols2" : "") + '">' + panels.map(function (x) {
+          return '<div class="code v-' + esc(x[2]) + '"><div class="code-h">' +
+            '<span class="k">' + x[0] + "</span><span>" + esc(x[1].label || "") +
+            "</span></div><pre>" + esc(x[1].code) + "</pre></div>";
+        }).join("") + "</div>"
+      : "";
+    $("gate-note").textContent = g.note || "";
   }
 
   var tools = (D.tools || []).map(function (t) {

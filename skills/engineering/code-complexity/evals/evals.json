@@ -148,6 +148,91 @@
         ],
         "absent": []
       }
+    },
+    {
+      "id": 6,
+      "name": "no-gate-configured",
+      "prompt": "cleaning up before a release and this one's been bugging me. is it actually as bad as it looks, or am i just reacting to the indentation? we don't run anything automated over this repo, i'm just reading the diff.\n\n```python\ndef sync_inventory(warehouses, catalog, *, dry_run=False):\n    updated = []\n    for wh in warehouses:\n        if wh.get(\"active\"):\n            for sku, row in wh[\"stock\"].items():\n                if sku in catalog:\n                    item = catalog[sku]\n                    if row[\"count\"] != item.count:\n                        if row[\"count\"] > item.count:\n                            if not dry_run:\n                                item.count = row[\"count\"]\n                                item.source = wh[\"id\"]\n                            updated.append((sku, row[\"count\"], \"up\"))\n                        elif item.allow_downward:\n                            if not dry_run:\n                                item.count = row[\"count\"]\n                            updated.append((sku, row[\"count\"], \"down\"))\n                elif wh.get(\"autocreate\"):\n                    catalog[sku] = make_item(sku, row[\"count\"])\n                    updated.append((sku, row[\"count\"], \"new\"))\n    return updated\n```",
+      "expected_output": "A verdict that nesting, not branch count, is the problem here - plus the finding the question does not ask for: this repo has no complexity gate at all, so the same shape recurs next sprint. Names ruff, gives the pyproject.toml block including C901 in extend-select, an exemption mechanism, and gate-the-diff-first rollout.",
+      "files": [],
+      "expectations": [
+        "Says which tool it would run and what that tool would count, rather than asserting a score from reading. Nothing is installed here, so a named command beats a number pulled from the air.",
+        "Identifies nesting depth as what makes this hard, and separates it from branch count: cognitive complexity is far above cyclomatic because each construct is penalised by how deep it sits, and cyclomatic alone would under-report the reading cost.",
+        "Recommends the shape of the fix - invert the guards and `continue` early, so every branch sits at depth one - rather than 'split this function', and does not justify it purely by the score moving.",
+        "Volunteers that the project has no complexity gate configured, unprompted. The user asked about one function; the reusable finding is that nothing is set up to catch the next one.",
+        "Names ruff specifically and shows the pyproject.toml configuration, including C901 in select/extend-select. Recommending a threshold without the config block leaves the reader to work out where it goes.",
+        "Recommends a readability metric alongside C901 - PLR1702 for nesting depth is the natural one - rather than a cyclomatic-only gate.",
+        "Pairs the threshold with an exemption mechanism, `# noqa: C901` carrying a written reason.",
+        "Recommends introducing the gate on new or changed code first rather than repo-wide, since a repo that has never been linted produces a wall of findings and the rule gets switched off.",
+        "Does not treat the absent tooling as merely an obstacle to measuring. The absence is itself a finding worth reporting."
+      ],
+      "signals": {
+        "present": [
+          "ruff",
+          "C901",
+          "pyproject",
+          "noqa",
+          "PLR1702|nest",
+          "cognitive"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 7,
+      "name": "gate-that-never-fires",
+      "prompt": "we've had complexity linting turned on for about a year and it basically never complains, which i took as a good sign. but three people this quarter have said the billing package is unreadable. is the linter telling me something the team isn't, or the other way round?\n\n```yaml\n# .golangci.yml\nlinters:\n  enable:\n    - gocyclo\n    - gocritic\n    - errcheck\n\nlinters-settings:\n  gocyclo:\n    min-complexity: 30\n```",
+      "expected_output": "The linter is not telling them anything. min-complexity: 30 is golangci-lint's own default, roughly three times McCabe, and passes almost everything - so a silent gate is evidence about the config, not about the code. Proposes gocyclo at 10-15, adds gocognit and nestif, the //nolint exemption with a reason, and rollout on changed code first.",
+      "files": [],
+      "expectations": [
+        "States plainly that `min-complexity: 30` is golangci-lint's own default value - not a number the team chose - and that it is roughly three times McCabe's recommendation.",
+        "Resolves the question the way it was asked: the silence is a property of the threshold, not evidence the code is clean. A gate that cannot fire reads as compliance while providing none.",
+        "Recommends a working value for gocyclo tied to that tool, in the 10-15 range, rather than a bare number carried over from another linter.",
+        "Points out that the config gates cyclomatic complexity alone, which sizes test effort rather than measuring readability - and that the team's 'unreadable' complaint is exactly the signal cyclomatic complexity cannot carry. Recommends gocognit alongside.",
+        "Recommends nestif, or otherwise addresses nesting depth, since deep nesting is the usual cause of a package people describe as unreadable.",
+        "Names the exemption mechanism - `//nolint:gocyclo` with a written reason, or `//gocyclo:ignore` - so the tightened threshold has an escape hatch rather than inviting bad refactors.",
+        "Warns that tightening the threshold across a year of unlinted code produces a wall of findings, and recommends gating changed code first and burning the backlog down deliberately.",
+        "Provides the corrected .golangci.yml as a snippet with concrete numbers, so the recommendation is a change the user can paste rather than a number they have to place.",
+        "Does not treat the existing 30 as a considered decision deserving deference. Defaults nobody changed are not decisions, and reading them as such is how the gate survives another year."
+      ],
+      "signals": {
+        "present": [
+          "min-complexity",
+          "30",
+          "gocognit",
+          "nolint|gocyclo:ignore",
+          "10|15",
+          "nestif|nest"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 8,
+      "name": "findings-without-the-page",
+      "prompt": "same numbers as last week's run, pasted below. don't write any files this time, just tell me here - i'm on a call in 10 and want to know what to hand to the two people picking this up.\n\n```\n$ gocyclo -over 10 -ignore \"_test\" .\n21 wire     decodeFrame       internal/wire/decode.go:31:1\n13 billing  ApplyAdjustments  internal/billing/adjust.go:120:1\n11 billing  UnmatchedTotals   internal/billing/reconcile.go:88:1\nAverage: 3.4\n\n$ gocognit -over 10 -ignore \"_test\" .\n34 billing  UnmatchedTotals   internal/billing/reconcile.go:88:1\n20 billing  ApplyAdjustments  internal/billing/adjust.go:120:1\n 3 wire     decodeFrame       internal/wire/decode.go:31:1\n```",
+      "expected_output": "The complete findings in the reply and no file written: UnmatchedTotals first (highest cognitive, ratio ~3.1), ApplyAdjustments second, decodeFrame exempt as a dispatch table despite topping cyclomatic. Two assignable items, plus the gate recommendation. The declined page changes the rendering, not the content.",
+      "files": [],
+      "expectations": [
+        "Writes no HTML report, and does not push back, negotiate, or ask again. The page is a default, not a requirement.",
+        "Still delivers the complete findings in the reply - each function, a verdict on each, and the order to pick them up in. A declined page must not shrink the analysis to a summary.",
+        "Leads with UnmatchedTotals: 3rd on cyclomatic but 1st on cognitive, a ratio above 3, which says nesting rather than branch count is the cost.",
+        "Exempts decodeFrame despite it topping the cyclomatic list, on the evidence of its cognitive score of 3 - a flat dispatch table, wide but readable, where refactoring would be manufactured work.",
+        "Frames the output as something the user can hand to two other people: named functions with a stated reason, not a ranked dump of the linter output they already have.",
+        "Still gives the gate recommendation - the thresholds worth configuring in .golangci.yml so this is caught continuously rather than re-run by hand each week - since dropping the page does not drop the durable half of the review.",
+        "Does not claim to have written, saved, or generated a report, and does not offer the file as a follow-up the user already declined."
+      ],
+      "signals": {
+        "present": [
+          "UnmatchedTotals",
+          "decodeFrame",
+          "cognitive",
+          "gocognit|gocyclo"
+        ],
+        "absent": [
+          "complexity-report.html"
+        ]
+      }
     }
   ]
 }
