@@ -66,7 +66,7 @@ The workspace is a **sibling** of the skill directory and is gitignored
 (`*-workspace/`), so runs never end up in a commit:
 
 ```
-documentation/                          # skill root
+code-documentation/                          # skill root
 code-documentation-workspace/
 └── iteration-1/
     ├── eval-1/
@@ -81,8 +81,8 @@ code-documentation-workspace/
     └── benchmark.md
 ```
 
-Note the workspace is named from `skill_name` in `evals.json`
-(`code-documentation`), not from the directory name (`documentation`).
+The workspace directory is named from `skill_name` in `evals.json`, which
+matches the skill directory name (`code-documentation`).
 
 ## Workflow
 

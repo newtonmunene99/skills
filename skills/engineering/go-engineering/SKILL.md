@@ -8,6 +8,10 @@ description: >-
   writing, reviewing, or optimizing Go code, or when asking about Go
   naming conventions, performance patterns, style, or readability.
 disable-model-invocation: false
+compatibility: >-
+  Assumes a Go toolchain for the measurement workflow — go test -bench, pprof,
+  and go build -gcflags=-m for escape analysis. The style guidance applies
+  without them.
 ---
 
 # Go Engineering

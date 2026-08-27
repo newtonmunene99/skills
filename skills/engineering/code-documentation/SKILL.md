@@ -13,6 +13,10 @@ description: >-
   concept doc, and after modifying code to check that its documentation is
   still complete and accurate.
 disable-model-invocation: false
+compatibility: >-
+  No system dependencies. Judgement-heavy: most of the value is in leaving
+  acceptable documentation alone and asking before creating a knowledge
+  bundle, both of which benefit from a high-reasoning model.
 ---
 
 # Code Documentation

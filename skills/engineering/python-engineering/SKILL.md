@@ -10,6 +10,9 @@ description: >-
   pydantic, adding type hints, structuring async code, writing tests, or
   configuring a Python project.
 disable-model-invocation: false
+compatibility: >-
+  Targets Python 3.11+. Assumes ruff, uv and pytest; recommendations adjust if
+  the project uses a different toolchain.
 ---
 
 # Python Engineering

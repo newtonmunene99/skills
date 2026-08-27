@@ -38,7 +38,7 @@ The workspace is a **sibling** of the skill directory and is gitignored
 (`*-workspace/`), so runs never end up in a commit:
 
 ```
-python/                       # skill root
+python-engineering/                       # skill root
 python-engineering-workspace/
 └── iteration-1/
     ├── eval-1/

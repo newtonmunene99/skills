@@ -8,6 +8,10 @@ description: >-
   .proto files, designing APIs, checking naming conventions, or aligning
   with the API Linter.
 disable-model-invocation: false
+compatibility: >-
+  No system dependencies. The API Linter
+  (github.com/googleapis/api-linter) is optional but recommended for
+  validating .proto files against the AIP rules this skill applies.
 ---
 
 # Protocol Buffers & API Design
