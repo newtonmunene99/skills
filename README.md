@@ -13,6 +13,8 @@ npx skills add newtonmunene99/skills
 Install a specific skill:
 
 ```bash
+npx skills add newtonmunene99/skills --skill code-documentation
+npx skills add newtonmunene99/skills --skill git-code-review
 npx skills add newtonmunene99/skills --skill go-engineering
 npx skills add newtonmunene99/skills --skill protocol-buffers
 npx skills add newtonmunene99/skills --skill python-engineering
@@ -31,6 +33,8 @@ Supported agents include **Cursor**, **Codex**, **Claude Code**, **OpenCode**, *
 
 | Skill                  | Directory                              | Description                                                                                                                                                                                 |
 | ---------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **code-documentation** | `skills/engineering/documentation/`    | Comments, API/symbol docs, READMEs, and [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) knowledge docs — per-language conventions (godoc, TSDoc, docstrings, dartdoc, proto) without touching behavior |
+| **git-code-review**    | `skills/engineering/code-review/`      | Reviewing diffs, commits, branches, and MR/PRs on any git host — GitHub not required. High-signal findings only                                                                             |
 | **go-engineering**     | `skills/engineering/go/`               | Performance optimization and idiomatic style for Go, from [goperf.dev](https://goperf.dev) and the [Google Go Style Guide](https://google.github.io/styleguide/go)                          |
 | **protocol-buffers**   | `skills/engineering/protocol-buffers/` | Protocol buffer design and resource-oriented API conventions, from [google.aip.dev](https://google.aip.dev/)                                                                                |
 | **python-engineering** | `skills/engineering/python/`           | Modern Python (3.11+) best practices — typing, dataclasses, pydantic v2, asyncio, pytest, ruff, uv — plus the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html) |
@@ -48,6 +52,27 @@ skills/
 │   └── validate-skills.sh
 └── skills/
     └── engineering/
+        ├── code-review/
+        │   ├── SKILL.md
+        │   ├── README.md
+        │   ├── LICENSE
+        │   ├── agents/
+        │   ├── evals/
+        │   └── references/
+        │       ├── scope-resolution.md
+        │       ├── merge-review.md
+        │       └── reporting.md
+        ├── documentation/
+        │   ├── SKILL.md
+        │   ├── README.md
+        │   ├── LICENSE
+        │   ├── agents/
+        │   ├── evals/
+        │   └── references/
+        │       ├── comments.md
+        │       ├── api-docs.md
+        │       ├── readmes.md
+        │       └── okf.md
         ├── go/
         │   ├── SKILL.md
         │   ├── README.md

@@ -1,0 +1,170 @@
+{
+  "skill_name": "code-documentation",
+  "evals": [
+    {
+      "id": 1,
+      "name": "document-go-package",
+      "prompt": "This is our token bucket package, `internal/ratelimit/ratelimit.go`. Nobody ever documented it and I keep having to reread it to remember what the units are. Can you write the docs for it?\n\n```go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"math\"\n\t\"sync\"\n\t\"time\"\n)\n\nvar ErrLimitExceeded = errors.New(\"ratelimit: limit exceeded\")\n\ntype Bucket struct {\n\tmu       sync.Mutex\n\ttokens   float64\n\tcapacity float64\n\trefill   float64\n\tlast     time.Time\n}\n\nfunc New(capacity, refillPerSecond float64) *Bucket {\n\treturn &Bucket{\n\t\ttokens:   capacity,\n\t\tcapacity: capacity,\n\t\trefill:   refillPerSecond,\n\t\tlast:     time.Now(),\n\t}\n}\n\nfunc (b *Bucket) Allow(n float64) error {\n\tb.mu.Lock()\n\tdefer b.mu.Unlock()\n\tb.advance(time.Now())\n\tif b.tokens < n {\n\t\treturn ErrLimitExceeded\n\t}\n\tb.tokens -= n\n\treturn nil\n}\n\nfunc (b *Bucket) advance(now time.Time) {\n\telapsed := now.Sub(b.last).Seconds()\n\tb.tokens = math.Min(b.capacity, b.tokens+elapsed*b.refill)\n\tb.last = now\n}\n```",
+      "expected_output": "godoc-convention documentation: a package overview (doc.go or a package comment), doc comments on every exported symbol beginning with the symbol name, documented units and error behaviour, and a doc on the unexported advance stating its locking precondition. No code changes.",
+      "files": [],
+      "expectations": [
+        "A package-level overview is written, either as a new doc.go file or a package comment on the existing file, describing what the package does rather than restating that it is a package.",
+        "Every exported symbol (ErrLimitExceeded, Bucket, New, Allow) has a doc comment, and each one begins with the symbol's own name as godoc requires - 'New returns...', not 'Creates...'.",
+        "Allow's doc states that it returns ErrLimitExceeded when there are not enough tokens, rather than leaving the caller to infer the error behaviour from the signature.",
+        "The units are documented: capacity is in tokens and refillPerSecond is tokens per second. This was the user's stated reason for asking, so leaving units implicit fails the task.",
+        "The unexported advance method is documented too, and its doc states the precondition that the caller must already hold b.mu - an invariant the compiler cannot express and the single most valuable comment in the file.",
+        "Concurrency safety is stated somewhere the caller will see it (on Bucket or on Allow), since the struct holds a mutex and callers cannot otherwise tell.",
+        "No comment is placed inline or trailing on a code line; every comment is a leading comment on its own line.",
+        "No code is changed - no renamed symbols, altered signatures, reordered fields, or behavioural edits. Any code problems noticed are mentioned in the reply instead of being fixed.",
+        "Trivially self-evident lines are left uncommented; there is no line-by-line narration of the arithmetic in advance."
+      ],
+      "signals": {
+        "present": [
+          "Package ratelimit",
+          "doc\\.go|package ratelimit",
+          "ErrLimitExceeded",
+          "// New ",
+          "// Allow ",
+          "// advance ",
+          "b\\.mu|caller must hold|holds b\\.mu|lock held",
+          "tokens per second|per second",
+          "concurrent|goroutine"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 2,
+      "name": "respect-existing-docs",
+      "prompt": "Doing a docs pass on `src/util/time.ts` before we cut the release. Have a look and fill in whatever's missing.\n\n```ts\nexport interface Range {\n  start: number;\n  end: number;\n}\n\n/**\n * Converts a duration in milliseconds to a human-readable string.\n *\n * Rounds to the nearest whole unit, so 1500ms renders as \"2s\" rather than\n * \"1.5s\". Callers needing precision should format the raw value themselves.\n *\n * @param ms - Duration in milliseconds. Negative values are treated as 0.\n * @returns A string like \"2s\", \"5m\", or \"3h\".\n */\nexport function formatDuration(ms: number): string {\n  const s = Math.max(0, Math.round(ms / 1000));\n  if (s < 60) return `${s}s`;\n  if (s < 3600) return `${Math.round(s / 60)}m`;\n  return `${Math.round(s / 3600)}h`;\n}\n\n/**\n * Parses an RFC 3339 timestamp into a Date.\n *\n * @param input - An RFC 3339 string, with or without a timezone offset.\n * @returns The parsed Date.\n * @throws {RangeError} If the string is not valid RFC 3339.\n */\nexport function parseTimestamp(input: string): Date {\n  const d = new Date(input);\n  if (Number.isNaN(d.getTime())) {\n    throw new RangeError(`not an RFC 3339 timestamp: ${input}`);\n  }\n  return d;\n}\n\nexport function nextRetryDelay(attempt: number, baseMs: number, capMs: number): number {\n  const exp = Math.min(capMs, baseMs * 2 ** attempt);\n  return Math.floor(Math.random() * exp);\n}\n\n/**\n * Returns true when the two ranges overlap at any point.\n *\n * Ranges are treated as half-open: [start, end). Two ranges that merely touch\n * - where one ends exactly where the other starts - do not overlap.\n */\nexport function rangesOverlap(a: Range, b: Range): boolean {\n  return a.start < b.end && b.start < a.end;\n}\n```",
+      "expected_output": "A TSDoc block added to nextRetryDelay only - documenting the three parameters with units, the return value, and the full-jitter randomisation. The three existing doc comments are left byte-identical.",
+      "files": [],
+      "expectations": [
+        "nextRetryDelay gains a TSDoc block documenting all three parameters (attempt, baseMs, capMs) with their units in milliseconds, plus the return value.",
+        "That doc explains the full-jitter behaviour: the return is a random value between 0 and the computed exponential backoff, not the backoff itself. A reader cannot infer this from the name and it is the whole reason the function needs a doc.",
+        "The existing doc comment on formatDuration is left completely unchanged - not reworded, reformatted, or reordered. The sentence about 1500ms rendering as '2s' survives verbatim.",
+        "The existing doc comment on parseTimestamp is left completely unchanged, including its @throws {RangeError} tag and the 'with or without a timezone offset' wording.",
+        "The existing doc comment on rangesOverlap is left completely unchanged, including the half-open interval explanation and the note about ranges that merely touch.",
+        "No function body is modified and no code is changed anywhere in the file.",
+        "No inline or trailing comments are introduced.",
+        "The reply states which symbol was documented and why the others were left alone, rather than implying a full rewrite happened."
+      ],
+      "signals": {
+        "present": [
+          "Rounds to the nearest whole unit",
+          "Callers needing precision should format the raw value themselves",
+          "An RFC 3339 string, with or without a timezone offset",
+          "@throws \\{RangeError\\}",
+          "Ranges are treated as half-open",
+          "where one ends exactly where the other starts",
+          "@param attempt",
+          "@param baseMs",
+          "@param capMs",
+          "jitter|random"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 3,
+      "name": "readme-from-scratch",
+      "prompt": "we've got this internal CLI called `shiplog` that nobody outside my team knows how to use. it reads deploy events off a kafka topic and prints a timeline so you can see what shipped when, and it can also diff two deploys. install is `go install github.com/acme/shiplog@latest`. it needs three env vars - SHIPLOG_BROKERS (comma separated kafka brokers, no default), SHIPLOG_TOPIC (defaults to deploy-events), and SHIPLOG_TIMEOUT (seconds, defaults to 30). there's a CONTRIBUTING.md already. can you write us a proper README? MIT licensed.",
+      "expected_output": "A README following the spine Title -> tagline -> About -> Installation -> Usage -> License, with a separate Quick Start, the three env vars in a configuration table, usage grouped by use case, CONTRIBUTING.md linked rather than inlined, and no invented Roadmap or FAQ.",
+      "files": [],
+      "expectations": [
+        "The README follows the required spine in order: title, then a one-line tagline, then About, Installation, Usage, and License.",
+        "The tagline is a single sentence under 25 words written for the reader ('if you need X, this does Y'), not a restatement of the project name.",
+        "Quick Start and Usage are separate sections rather than merged into one, so the first example stays minimal.",
+        "The three environment variables are rendered as a table with their defaults - SHIPLOG_BROKERS with no default, SHIPLOG_TOPIC defaulting to deploy-events, SHIPLOG_TIMEOUT defaulting to 30 seconds - rather than described in prose.",
+        "Usage examples are grouped by what the reader is trying to do (viewing a timeline, diffing two deploys) rather than by enumerating flags or commands.",
+        "CONTRIBUTING.md is linked rather than having its content inlined or invented.",
+        "No Roadmap or FAQ section is invented. The user described neither upcoming work nor recurring questions, and fabricating either fills the README with content nobody can act on.",
+        "No badges are added that assert something the user never stated, such as a build status or coverage percentage.",
+        "The License section states MIT."
+      ],
+      "signals": {
+        "present": [
+          "## About",
+          "## Install",
+          "## Usage",
+          "## License",
+          "Quick Start",
+          "SHIPLOG_BROKERS",
+          "SHIPLOG_TOPIC",
+          "SHIPLOG_TIMEOUT",
+          "deploy-events",
+          "\\|.*SHIPLOG_TOPIC.*\\|",
+          "CONTRIBUTING\\.md",
+          "MIT"
+        ],
+        "absent": [
+          "## Roadmap",
+          "## FAQ"
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "name": "okf-concept-and-index",
+      "prompt": "we keep our data knowledge in an OKF bundle at `knowledge/`. can you add concept docs for two tables we just landed?\n\n`sales.orders` - one row per completed customer order across all channels. columns: order_id (STRING, unique), customer_id (STRING, points at sales.customers), total_usd (NUMERIC, order total in USD), placed_at (TIMESTAMP, when the customer submitted it).\n\n`sales.customers` - one row per customer account. columns: customer_id (STRING, unique), email (STRING), signed_up_at (TIMESTAMP).\n\nthere's already a `knowledge/tables/index.md` listing our other tables.",
+      "expected_output": "Two conformant OKF concept documents under knowledge/tables/ with a required type, title, description, a # Schema table, and a bundle-absolute link from orders to customers; plus index.md updated with both entries and left frontmatter-free. No fabricated verified field and no human: actor.",
+      "files": [],
+      "expectations": [
+        "Two concept documents are created under knowledge/tables/, each opening with a YAML frontmatter block delimited by --- on its own lines.",
+        "Each frontmatter carries a non-empty `type` - the only always-required OKF key - with a descriptive value such as 'BigQuery Table' rather than being omitted or left blank.",
+        "Each concept has a `title` and a single-sentence `description`, since the description is what an index entry and a search snippet reuse.",
+        "The schema is rendered under a `# Schema` heading as a markdown table, using OKF's conventional heading rather than an invented one like '## Columns'.",
+        "The orders concept links to the customers concept on the customer_id column, using a bundle-absolute link beginning with / (for example /tables/customers.md) rather than a relative path - absolute links survive a document being moved.",
+        "knowledge/tables/index.md is updated with an entry for each new table, reusing each concept's description as the entry text.",
+        "That index.md is left WITHOUT frontmatter. Index files are the one place in a bundle where frontmatter is not permitted, apart from okf_version on a bundle-root index, and adding a type block there is the most common OKF structural mistake.",
+        "If `generated` is written, `generated.by` uses the agent form of the actor convention (<producer>/<version>), not a bare name and not a human: identifier.",
+        "No `verified` field is fabricated on either concept. The user never said anyone reviewed these, and verified asserts a named person or process signed off. Unverified is a conformant, honest state.",
+        "Any timestamp written is ISO 8601 with an explicit UTC offset, for example 2026-08-27T14:30:00Z, rather than a naked local datetime or a bare date."
+      ],
+      "signals": {
+        "present": [
+          "type:",
+          "title:",
+          "description:",
+          "# Schema",
+          "/tables/customers\\.md|\\(/.*customers",
+          "index\\.md",
+          "order_id",
+          "customer_id"
+        ],
+        "absent": [
+          "by:\\s*human:",
+          "verified:\\s*\\{"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "name": "okf-ambiguous-scope-ask",
+      "prompt": "just merged the orders-api service. it's a Go service in `services/orders-api/` that serves the sales.orders table over REST - handlers, a store package, the usual. our repo also has a `knowledge/` bundle where we keep the OKF data docs. can you document it?",
+      "expected_output": "A single clarifying question. The request is ambiguous between godoc on the Go package and an OKF concept in the knowledge bundle, so the correct move is to ask which - offering the concrete options - and to write nothing until answered.",
+      "files": [],
+      "expectations": [
+        "Recognises that 'document it' is ambiguous here: the repo holds both an undocumented Go service and an OKF knowledge bundle, and those are different artifacts written for different readers.",
+        "Asks the user which is wanted instead of silently picking one, and instead of defaulting to doing both.",
+        "The question names the concrete options - godoc and comments on the Go package under services/orders-api/, an OKF concept in knowledge/ describing the API or the dataset it serves, or both - rather than being an open-ended 'what would you like?'.",
+        "Asks a single question rather than a list of questions. One decision is genuinely blocked; nothing else is.",
+        "Does not create, or show the full content of, any OKF concept document before the answer arrives. Standing up bundle content is the scope decision being asked about.",
+        "Does not speculatively add or modify a bundle index.md or log.md.",
+        "Any recommendation offered alongside the question is brief - a sentence, not a plan."
+      ],
+      "signals": {
+        "present": [
+          "\\?",
+          "OKF|knowledge/",
+          "godoc|doc comment|package doc|comments",
+          "orders-api"
+        ],
+        "absent": [
+          "\\ntype: ",
+          "generated:\\s*\\{"
+        ]
+      }
+    }
+  ]
+}

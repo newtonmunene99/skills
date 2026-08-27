@@ -1,0 +1,5 @@
+interface:
+  display_name: "Code Documentation"
+  short_description: "Comments, API docs & README authoring"
+  brand_color: "#3B82F6"
+  default_prompt: "Use $code-documentation to audit and improve the comments, API docs and README for this package."

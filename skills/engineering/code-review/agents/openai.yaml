@@ -1,0 +1,5 @@
+interface:
+  display_name: "Git Code Review"
+  short_description: "Host-agnostic git diff & MR/PR review"
+  brand_color: "#F97316"
+  default_prompt: "Use $git-code-review to review my current branch against the default base before I merge."
