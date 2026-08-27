@@ -10,6 +10,8 @@ description: >-
   asked to review changes, a branch, a commit, a range, someone's recent work,
   or an MR/PR, and before merging.
 disable-model-invocation: false
+model: best
+effort: xhigh
 ---
 
 # Git Code Review
@@ -70,7 +72,7 @@ because the maybes teach the reader to skim.
 
 ## When to Read Which Reference
 
-- **Working out *what* to review from what the user said — git command tables for
+- **Working out _what_ to review from what the user said — git command tables for
   every scope, relative history ("last 5 commits"), author and time filters,
   resolving "me", multi-commit handling** → Read
   [references/scope-resolution.md](references/scope-resolution.md)
