@@ -135,6 +135,9 @@
   .v-long      { color: var(--long); }
   .v-attention { color: var(--attention); }
   td.verdict { font-family: var(--mono); font-size: .82rem; }
+  tr.nonote td { border-bottom: 0; padding-bottom: .3rem; }
+  tr.noterow td { padding: 0 .85rem .7rem; color: var(--muted); font-size: .84rem;
+                  border-bottom: 1px solid var(--line); max-width: 0; }
   .hi { color: var(--attention); font-weight: 600; }
   .lo { color: var(--expected); }
 
@@ -196,8 +199,8 @@
 <body>
 <div class="wrap">
 
-  <div class="crumb">
-    <div><b id="c-repo"></b><span id="c-ref"></span></div>
+  <div class="crumb" id="crumb">
+    <div id="c-prov"><b id="c-repo"></b><span id="c-ref"></span></div>
     <div class="kind" id="c-kind">Complexity report</div>
   </div>
 
@@ -216,8 +219,8 @@
   <div id="stats-sec" class="hide"><div class="stats" id="stats"></div></div>
 
   <div id="dist-sec" class="hide">
-    <div class="split">
-      <div>
+    <div class="split" id="dist-split">
+      <div id="dist-col">
         <h2 id="dist-title" style="margin-top:2.75rem">Distribution</h2>
         <div class="dist" id="dist"></div>
         <div id="dist-labels" style="display:flex;gap:.45rem"></div>
@@ -291,6 +294,12 @@
   $("c-repo").textContent = D.repo || "";
   $("c-ref").textContent = D.ref ? "  /  " + D.ref : "";
   if (D.kind) $("c-kind").textContent = D.kind;
+  if (!D.repo && !D.ref) {
+    // No provenance to show. Drop the empty slot and let the label sit left,
+    // rather than stranding it against the right margin over nothing.
+    $("c-prov").classList.add("hide");
+    $("crumb").style.justifyContent = "flex-start";
+  }
   if (D.eyebrow) { show("eyebrow-row"); $("c-eyebrow").textContent = D.eyebrow; }
   $("title").textContent = D.headline || D.title || "Complexity report";
   $("lede").textContent = D.lede || D.question || "";
@@ -312,7 +321,14 @@
   }
 
   /* ---- distribution ---- */
-  if (D.distribution && has(D.distribution.buckets)) {
+  var hasDist = !!(D.distribution && has(D.distribution.buckets));
+  if (!hasDist) {
+    // Insight can appear without a histogram. Drop the empty left column and its
+    // heading rather than leaving a "Distribution" label over nothing.
+    $("dist-col").classList.add("hide");
+    $("dist-split").style.gridTemplateColumns = "1fr";
+  }
+  if (hasDist) {
     show("dist-sec");
     var b = D.distribution.buckets;
     var max = Math.max.apply(null, b.map(function (x) { return x.count; })) || 1;
@@ -417,17 +433,22 @@
     var sortKey = (D.metrics[1] || D.metrics[0]).key;
     visible.sort(function (a, b) { return (b.scores[sortKey] || 0) - (a.scores[sortKey] || 0); });
 
+    var hasLang = rows.some(function (f) { return f.lang; });
     var head = "<thead><tr><th>File</th><th>Function</th>" +
-      (rows.some(function (f) { return f.lang; }) ? "<th>Lang</th>" : "") +
+      (hasLang ? "<th>Lang</th>" : "") +
       D.metrics.map(function (m) { return '<th class="n">' + esc(m.short || m.key) + "</th>"; }).join("") +
       '<th class="n">Ratio</th><th>Verdict</th></tr></thead>';
+
+    // file + function (+ lang) + one per metric + ratio + verdict
+    var cols = 4 + D.metrics.length + (hasLang ? 1 : 0);
 
     $("hot").innerHTML = head + "<tbody>" + (visible.length ? visible.map(function (f) {
       var r = ratioOf(f);
       var rcls = r == null ? "" : (r >= 1.6 ? "hi" : (r <= 0.9 ? "lo" : ""));
-      return "<tr><td class='m'>" + esc(f.file) + (f.line ? ":" + f.line : "") + "</td>" +
+      var row = "<tr" + (f.note ? " class='nonote'" : "") + "><td class='m'>" +
+        esc(f.file) + (f.line ? ":" + f.line : "") + "</td>" +
         "<td class='fn'>" + esc(f.name) + "</td>" +
-        (rows.some(function (x) { return x.lang; }) ? "<td class='m'>" + esc(f.lang || "") + "</td>" : "") +
+        (hasLang ? "<td class='m'>" + esc(f.lang || "") + "</td>" : "") +
         D.metrics.map(function (m) {
           var v = f.scores[m.key];
           if (typeof v !== "number") return "<td class='n'></td>";
@@ -436,7 +457,13 @@
         }).join("") +
         "<td class='n " + rcls + "'>" + (r == null ? "" : r.toFixed(2)) + "</td>" +
         "<td class='verdict v-" + esc(f.verdict) + "'>" + esc(f.verdict) + "</td></tr>";
-    }).join("") : "<tr><td colspan='9' style='color:var(--muted)'>Nothing at these thresholds.</td></tr>") +
+      // The note is what turns a row into a finding — it says what KIND of
+      // complexity this is, which the numbers alone cannot.
+      if (f.note) {
+        row += "<tr class='noterow'><td colspan='" + cols + "'>" + esc(f.note) + "</td></tr>";
+      }
+      return row;
+    }).join("") : "<tr><td colspan='" + cols + "' style='color:var(--muted)'>Nothing at these thresholds.</td></tr>") +
     "</tbody>";
   }
 
