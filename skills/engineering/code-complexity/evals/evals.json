@@ -129,6 +129,7 @@
         "Identifies decodeFrame as expected rather than a defect. Highest cyclomatic score in the repo at 18 and a cognitive score of 2 is the signature of a flat dispatch table - branch count without difficulty - and it should be exempted, not refactored.",
         "Recommends an exemption directive for decodeFrame (//gocyclo:ignore or //nolint:gocyclo with a reason) rather than restructuring it or raising the global threshold.",
         "Generates a complexity-report.html file rather than only answering in prose, since a tool actually ran and there are real per-function scores to put in it.",
+        "Writes the report to ./complexity-report.html — the user ran gocyclo on `.`, so the scanned scope and the working directory are the same place, and the file belongs there rather than anywhere else in the tree.",
         "The report groups findings by verdict - needs attention, expected, long - rather than presenting one table sorted by score. The classification is the part the linter could not do.",
         "Each finding in the report carries a note saying what kind of complexity it is, not merely restating the number that is already displayed beside it.",
         "The chat reply stays short and points at the generated page, rather than duplicating the whole findings table in the terminal.",
