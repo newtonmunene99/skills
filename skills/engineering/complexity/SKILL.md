@@ -10,6 +10,8 @@ description: >-
   linter, decide what threshold to set, interpret a complexity report, or judge
   whether a high-scoring function actually needs refactoring.
 disable-model-invocation: false
+model: best
+effort: xhigh
 ---
 
 # Code Complexity
@@ -88,8 +90,8 @@ covered in step 5.
 - **ESLint's `variant: "modified"` is the switch exemption as a config flag.** It
   counts a whole `switch` as +1 regardless of case count. Few people know it exists,
   and it is the direct fix for a dispatch table tripping the rule.
-- **The policy is not the number.** The original recommendation was *"limit to 10, or
-  provide a written explanation of why the limit was exceeded"* — the escape hatch
+- **The policy is not the number.** The original recommendation was _"limit to 10, or
+  provide a written explanation of why the limit was exceeded"_ — the escape hatch
   is part of the rule, not a loophole in it.
 - **Nesting depth beats CC for readability feedback** because it points at the
   offending line rather than labelling a whole function "too complex."
