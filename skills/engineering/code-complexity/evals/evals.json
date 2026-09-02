@@ -132,7 +132,7 @@
         "Writes the report to ./complexity-report.html — the user ran gocyclo on `.`, so the scanned scope and the working directory are the same place, and the file belongs there rather than anywhere else in the tree.",
         "The report groups findings by verdict - needs attention, expected, long - rather than presenting one table sorted by score. The classification is the part the linter could not do.",
         "Each finding in the report carries a note saying what kind of complexity it is, not merely restating the number that is already displayed beside it.",
-        "The chat reply stays short and points at the generated page, rather than duplicating the whole findings table in the terminal.",
+        "The chat reply carries the findings that matter - the functions to act on, a verdict on each, and the gate recommendation - and leaves the full per-function table to the generated page. A reply that only points at the file fails this.",
         "Mentions adding complexity-report.html to .gitignore without editing .gitignore directly.",
         "Does not fabricate scores for metrics that were not measured. Only cyclomatic and cognitive numbers exist here; nesting depth was never run, so no nesting column should be invented."
       ],

@@ -45,8 +45,11 @@ tree costs nothing. Match the bar to the cost.
 
 ## The signal bar
 
-This is the part that decides whether a review is useful or just noise, so it stays
-in context for every review.
+This is the merge-review bar, and the Critical tier everywhere else. Working-tree
+and history reviews also report Warnings and Suggestions, per
+[references/reporting.md](references/reporting.md). The exclusions below for
+pre-existing issues, linter-catchable findings, and silenced rules apply in every
+mode.
 
 **Flag an issue only when one of these holds:**
 
@@ -70,9 +73,11 @@ in context for every review.
 - **Speculative issues** that depend on runtime state you cannot verify.
 - **Style that is not codified** in the project's own guidelines.
 
-**If you are not certain an issue is real, do not flag it.** A review with three
-confirmed findings is worth more than one with three findings and nine maybes,
-because the maybes teach the reader to skim.
+**In a merge review, if you are not certain an issue is real, do not flag it.** A
+review with three confirmed findings is worth more than one with three findings
+and nine maybes, because the maybes teach the reader to skim. In a working-tree or
+history review, report the maybe as a Warning or Suggestion and say how sure you
+are, rather than dropping it.
 
 ## When to Read Which Reference
 
