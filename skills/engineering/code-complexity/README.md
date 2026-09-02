@@ -104,7 +104,7 @@ Supported agents include **Cursor**, **Codex**, **Claude Code**, **OpenCode**,
 - **references/report.md** — when to generate the HTML report, its data shape, and the verdict taxonomy
 - **assets/report-template.html** — the self-contained report page, filled in with a JSON blob
 - **agents/openai.yaml** — optional Codex/Copilot display metadata (not read by the model)
-- **evals/** — 4 eval prompts with expectations, and the harness to run them
+- **evals/** — 8 eval prompts with expectations, and the harness to run them
 
 ## Sources
 

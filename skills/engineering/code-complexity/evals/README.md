@@ -10,7 +10,7 @@ the skill and once without, so the benchmark shows the delta rather than an
 absolute score. An expectation that passes in both columns isn't measuring the
 skill; it's measuring the model.
 
-> These five prompts are written but have not been run yet. There is no
+> Results live in the gitignored workspace, so a fresh clone has no
 > `iteration-1/` until someone does step 1 below.
 
 ## Files
@@ -21,7 +21,7 @@ skill; it's measuring the model.
 | `prepare_workspace.py` | Builds the workspace directory layout and `eval_metadata.json` from `evals.json` |
 | `run_benchmark.sh` | Aggregates grading results and opens the review viewer |
 
-## What the five prompts target
+## What the eight prompts target
 
 | id | name | The thing a bare model gets wrong |
 | -- | ---- | --------------------------------- |
@@ -30,6 +30,9 @@ skill; it's measuring the model.
 | 3 | `go-linter-layering` | The `min-complexity: 30` trap, and answering gocyclo-vs-cyclop instead of listing both |
 | 4 | `threshold-and-exemption` | That `C901` is not in ruff's default select, so the number they set may never run |
 | 5 | `report-from-linter-output` | Two rankings that **disagree**, and generating the HTML report instead of a prose list |
+| 6 | `no-gate-configured` | Nothing installed, nothing configured. The absent gate is itself a finding, and the fix is inverted guards, not a split |
+| 7 | `gate-that-never-fires` | A year of silence from `min-complexity: 30`, read as a good sign. The silence belongs to the threshold, not the code |
+| 8 | `findings-without-the-page` | "Don't write files." The page is declined and the findings must still arrive in full in the reply |
 
 Eval 5 is built around a deliberate inversion. `decodeFrame` is first on cyclomatic
 (18) and last on cognitive (2); `UnmatchedTotals` is last on cyclomatic (11) and
@@ -108,8 +111,8 @@ with-skill and baseline runs in the same batch so they finish together.
 Save `timing.json` (`total_tokens`, `duration_ms`) when each run completes —
 that data arrives in the run notification and isn't recoverable afterwards.
 
-All four prompts carry their input inline, so the runs need no fixture repository,
-no installed linters and no network. Evals 3 and 4 grade the *recommended
+All eight prompts carry their input inline, so the runs need no fixture repository,
+no installed linters and no network. Evals 3, 4, 6 and 7 grade the *recommended
 configuration*, not the output of a real lint run.
 
 ### 3. Grade

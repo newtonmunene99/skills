@@ -18,7 +18,7 @@ compatibility: >-
   Judgement-heavy: the value is in classifying findings rather than counting
   them, so it benefits from a high-reasoning model.
 model: best
-effort: xhigh
+effort: high
 ---
 
 # Code Complexity
@@ -71,9 +71,8 @@ and never a replacement for saying the findings out loud.
    - **Considered.** The number fits the tool, it actually fires, and something is
      measuring readability. Measure against it and leave it alone.
 
-   Give an existing threshold the benefit of the doubt — someone may have chosen it.
-   A tool default nobody touched is not a choice, and reading it as one is how a
-   review confirms a gate that has never fired.
+   A configured value counts as a decision only if someone changed it from the
+   tool's default; an untouched default is a gap to report, not a choice to respect.
 2. **Run the tool if it is installed**, scoped to the code in question. Real numbers
    beat estimates, and every tool counts differently enough that guessing is unsafe.
    If nothing is installed, say what you would run rather than eyeballing a score —
@@ -101,7 +100,7 @@ and never a replacement for saying the findings out loud.
    the user named, else the root of the directory that was scanned, else the working
    directory — never the enclosing repo root just because one exists. Skip it if the
    user said they do not want a page, or for purely conceptual questions where nothing
-   was measured; step 5 still happens either way. See
+   was measured. See
    [references/report.md](references/report.md).
 
 ## When to Read Which Reference
@@ -139,14 +138,8 @@ and never a replacement for saying the findings out loud.
 - **The policy is not the number.** The original recommendation was _"limit to 10, or
   provide a written explanation of why the limit was exceeded"_ — the escape hatch
   is part of the rule, not a loophole in it.
-- **A tool default nobody changed is not a decision.** A `.golangci.yml` carrying
-  `min-complexity: 30` means the linter was switched on and never tuned. Report it as
-  a gap with the corrected value, not as the team's chosen threshold.
 - **Nesting depth beats CC for readability feedback** because it points at the
   offending line rather than labelling a whole function "too complex."
-- **The reply carries the findings; the page carries the table.** A calling agent
-  should be able to decide what to act on from the reply alone. A reply that says only
-  "wrote complexity-report.html" has handed the decision to a file nobody opened.
 - **The report's value is the verdict, not the table.** Classifying each finding as
   needing attention, expected, or merely long is the part a linter cannot do — and a
   report where everything needs attention is one nobody acts on.
