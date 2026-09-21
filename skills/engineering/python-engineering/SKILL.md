@@ -57,6 +57,10 @@ Apply the [Google Python Style Guide](https://google.github.io/styleguide/pyguid
 - **Testing — pytest fixtures, parametrize, mocking, coverage, async tests** → Read [references/modern/testing.md](references/modern/testing.md)
 - **Tooling & packaging — `pyproject.toml`, `uv`, `ruff`, `mypy`/`pyright`, src layout, entry points** → Read [references/modern/tooling.md](references/modern/tooling.md)
 
+### Design patterns
+
+- **SOLID and the GoF patterns (Strategy, Observer, Singleton, Visitor and the rest) in idiomatic Python** → Use the `design-patterns` skill if it is installed; its Python reference covers dicts of callables, `Protocol`, generators, modules as singletons and which patterns vanish in Python.
+
 ## Quick Cues
 
 - **Types on public APIs:** Use `list[int]`, `dict[str, int]`, `X | None`. Prefer `Sequence`/`Mapping`/`Iterable` from `collections.abc` in parameter positions.

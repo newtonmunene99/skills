@@ -1,0 +1,151 @@
+{
+  "skill_name": "design-patterns",
+  "evals": [
+    {
+      "id": 1,
+      "name": "go-singleton-db-pool",
+      "prompt": "Several packages in our Go service (orders, billing, reports) need the Postgres connection pool. Can you write a thread-safe singleton in package db so any package can just call db.Pool()? We're on pgx v5.",
+      "expected_output": "Pushes back on the global accessor and recommends building the pool once in main and passing it to the packages that need it. Names concrete costs of the global, including that pgxpool.New takes a context and returns an error, which a no-argument db.Pool() has nowhere to put. If a lazy global is still offered, it uses sync.OnceValues and surfaces the error.",
+      "files": [],
+      "expectations": [
+        "Recommends, as the primary answer, constructing the pool once at startup (main or the composition root) and passing it to orders, billing and reports through their constructors.",
+        "Names at least two concrete costs of a package-level db.Pool() accessor, such as: the dependency is hidden from function signatures, tests share one pool and cannot substitute their own, or initialization order becomes implicit.",
+        "Points out that pgxpool.New needs a context and returns an error, and that a no-argument db.Pool() must either panic, swallow the error, or return it on every call.",
+        "If it provides a lazy global at all, uses sync.OnceValues (or sync.Once with a stored error) and surfaces the construction error, rather than a hand-rolled mutex with a nil check.",
+        "Suggests that consuming packages accept either the *pgxpool.Pool or a small interface declared in the consuming package, not a producer-side interface in package db."
+      ],
+      "signals": {
+        "present": [
+          "func main|in `?main`?|composition root",
+          "context|ctx",
+          "OnceValues|constructor|NewService|New\\w+\\(\\w+ \\*pgxpool"
+        ],
+        "absent": [
+          "if instance == nil"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "name": "python-strategy-without-abc",
+      "prompt": "We add a new payment provider roughly every quarter and this function keeps growing. Refactor it to the Strategy pattern: an abstract base class PaymentStrategy with one subclass per provider.\n\n```python\ndef charge(provider: str, amount_cents: int, customer: Customer) -> str:\n    if provider == \"stripe\":\n        intent = stripe.PaymentIntent.create(\n            amount=amount_cents, currency=\"usd\", customer=customer.stripe_id, confirm=True\n        )\n        return intent.id\n    elif provider == \"paypal\":\n        order = paypal_client.orders.create(amount=amount_cents / 100, payer_id=customer.paypal_id)\n        return order[\"id\"]\n    elif provider == \"mpesa\":\n        resp = mpesa.stk_push(phone=customer.phone, amount=amount_cents // 100)\n        return resp.checkout_request_id\n    else:\n        raise ValueError(f\"unknown provider: {provider}\")\n```",
+      "expected_output": "Accepts that the force is real (a new provider each quarter) and extracts the variation, but not as an ABC with one-method subclasses. Recommends a registry mapping provider name to a charge function, explains that a stateless one-method class is a function in Python, keeps a clear error for unknown providers, and says when a class or Protocol would become right (a second operation such as refund, or per-provider configuration).",
+      "files": [],
+      "expectations": [
+        "Treats the force as real and does extract the per-provider variation, rather than recommending to leave the if/elif as is.",
+        "Does not deliver an abc.ABC base class with one-method subclasses as the recommended design. Recommends a dict from provider name to a charge callable instead, and gives the reason: a stateless class with one method is a function in Python.",
+        "Keeps a clear error for an unknown provider (a ValueError naming the provider), rather than letting a bare KeyError escape from the dict lookup.",
+        "Shows that adding a provider means writing one new function and adding one registry entry, with no edit to the dispatch code.",
+        "States when a class-based design would become the right call: a second per-provider operation (for example refund), or per-provider state such as clients and credentials. If it names the structural type to use then, it is typing.Protocol rather than an ABC.",
+        "Any type hints in the code use builtin generics and collections.abc (dict[str, Callable[...]], Callable from collections.abc), not typing.Dict or typing.Callable."
+      ],
+      "signals": {
+        "present": [
+          "Callable",
+          "ValueError",
+          "\\bProtocol\\b"
+        ],
+        "absent": [
+          "\\nclass \\w+\\(PaymentStrategy\\):"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "name": "solid-review-without-invention",
+      "prompt": "Can you review this class for SOLID violations?\n\n```ts\ntype Currency = \"USD\" | \"EUR\";\ninterface Order { region: string; amount: number; currency: Currency; fxRateToUsd: number; status: \"paid\" | \"refunded\" }\ninterface ReportRow { region: string; total: number }\n\ninterface OrderRepo {\n  findByMonth(month: string): Promise<Order[]>;\n}\n\nexport class RevenueReport {\n  constructor(private readonly orders: OrderRepo) {}\n\n  async build(month: string): Promise<ReportRow[]> {\n    const orders = await this.orders.findByMonth(month);\n    const byRegion = new Map<string, number>();\n    for (const o of orders) {\n      if (o.status === \"refunded\") continue;\n      byRegion.set(o.region, (byRegion.get(o.region) ?? 0) + this.toUsd(o));\n    }\n    return [...byRegion].map(([region, total]) => ({ region, total }));\n  }\n\n  toCsv(rows: ReportRow[]): string {\n    return [\"region,total\", ...rows.map((r) => `${r.region},${r.total.toFixed(2)}`)].join(\"\\n\");\n  }\n\n  async sendToFinance(month: string): Promise<void> {\n    const csv = this.toCsv(await this.build(month));\n    const smtp = new SmtpClient(process.env.SMTP_HOST!, 587);\n    await smtp.send({\n      to: \"finance@example.com\",\n      subject: `Revenue ${month}`,\n      attachments: [{ filename: `revenue-${month}.csv`, content: csv }],\n    });\n  }\n\n  private toUsd(o: Order): number {\n    switch (o.currency) {\n      case \"USD\":\n        return o.amount;\n      case \"EUR\":\n        return o.amount * o.fxRateToUsd;\n    }\n  }\n}\n```",
+      "expected_output": "One real finding, stated with the change it makes painful: sendToFinance constructs an SmtpClient and reads process.env inside the method (Dependency Inversion), so the report delivery cannot be tested without an SMTP server and changing mail provider or recipients means editing the report. The fix is to inject a small mailer or report-sink interface owned by the report module. Moving delivery out of the class is an acceptable SRP framing of the same issue. The review says what is fine: OrderRepo is already injected and narrow, and the currency switch over a closed two-member union is not an Open/Closed problem. Real correctness bugs (float money, the status denylist, unescaped CSV) are still reported, in their own short list.",
+      "files": [],
+      "expectations": [
+        "Flags that sendToFinance constructs SmtpClient and reads process.env.SMTP_HOST inside the method, and recommends injecting a mailer (or report-delivery) dependency through the constructor, declared in the report's own terms.",
+        "Each finding names a concrete change or test that the current code makes painful (for example: testing sendToFinance without an SMTP server, switching mail provider, changing recipients), not just the principle's name.",
+        "Does not present the two-case currency switch as an Open/Closed violation that needs a Strategy or polymorphism now. If it mentions the switch, it says it is fine as is, and possibly names what would change that (more currencies, or the same switch repeated elsewhere).",
+        "Does not flag OrderRepo for Interface Segregation, and recognizes it as already injected and narrow.",
+        "Explicitly says which parts of the class are fine, rather than producing a finding for each of the five principles.",
+        "Does not recommend splitting the class into one type per method or adding interfaces for types with a single implementation and no test need.",
+        "Reports at least one real correctness issue outside SOLID (money summed as floats, the refunded-status denylist that would count new statuses as revenue, or unescaped CSV fields), kept separate from the design findings."
+      ],
+      "signals": {
+        "present": [
+          "SmtpClient",
+          "process\\.env",
+          "inject|constructor"
+        ],
+        "absent": [
+          "class \\w*(Usd|Eur|Currency)\\w*(Converter|Strategy)"
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "name": "no-force-no-pattern",
+      "prompt": "This is in our library-management service. Can you make it more extensible and enterprise-grade using proper design patterns (Strategy, Factory, whatever fits)?\n\n```go\ntype MemberType int\n\nconst (\n\tStandard MemberType = iota\n\tStudent\n)\n\n// LateFee returns the fee in cents for returning a book daysLate days late.\nfunc LateFee(daysLate int, m MemberType) int {\n\tif daysLate <= 0 {\n\t\treturn 0\n\t}\n\tperDay := 25\n\tif m == Student {\n\t\tperDay = 10\n\t}\n\tfee := daysLate * perDay\n\tif fee > 1000 {\n\t\tfee = 1000\n\t}\n\treturn fee\n}\n```",
+      "expected_output": "Declines to add Strategy or Factory: there is no force (two member types, one rule, no stated change). Says so plainly, names the concrete change that would justify a pattern later, and offers at most small improvements that keep a single function and identical behavior, such as named constants or a per-member rate table and a table-driven test.",
+      "files": [],
+      "expectations": [
+        "States plainly that there is no current force for Strategy or Factory here (two member types, one small rule, no stated upcoming change) and recommends not introducing them now.",
+        "Names a concrete trigger that would justify revisiting: more member types, fee rules that vary per branch or come from config, or the same member-type branching appearing in other functions.",
+        "Any improvement offered is small and keeps LateFee a single function, for example named constants for 25, 10 and 1000, or a map from MemberType to per-day rate.",
+        "Any rewritten code preserves the existing behavior and signature exactly, including zero for daysLate <= 0 and the 1000-cent cap. A latent issue such as the silent default for unknown member types may be raised, but as a separate opt-in suggestion, not folded into the refactor.",
+        "Does not deliver a Strategy interface with per-member implementations, a factory function, or new interface types as the recommended change."
+      ],
+      "signals": {
+        "present": [
+          "YAGNI|no (current )?force|not (yet )?(worth|needed|justified)|premature|overkill|over-engineer",
+          "1000"
+        ],
+        "absent": [
+          "type \\w*(Strategy|Policy|Calculator) interface"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "name": "ts-observer-durable-and-leak-free",
+      "prompt": "In our TypeScript backend, when an order ships we update inventory, email the customer, and send an analytics event. Each of those is owned by a different module, and right now OrderService.ship() imports and calls all three directly. How should we decouple this?",
+      "expected_output": "An Observer-style typed event (a typed emitter or EventTarget) that OrderService publishes after the shipment is committed, with subscribe returning an unsubscribe. Makes the delivery decisions explicit: one failing listener must not stop the others or fail the shipment. Flags that in-process events are lost on a crash, so inventory and the customer email should go through a queue or transactional outbox, while analytics can stay in-process.",
+      "files": [],
+      "expectations": [
+        "Proposes that OrderService publishes a typed 'order shipped' event that the inventory, email and analytics modules subscribe to, so OrderService no longer imports them.",
+        "The event payloads are typed (for example a map from event name to payload type used by the emitter's generics), not stringly typed with any.",
+        "The subscription API returns an unsubscribe function or accepts an AbortSignal, so a subscriber can be removed.",
+        "Addresses error isolation: a failing listener does not stop the other listeners and does not fail or roll back the shipment.",
+        "Publishes the event only after the shipment state is committed, not before or mid-transaction.",
+        "Flags that in-process events are lost if the process crashes, and recommends a durable queue or a transactional outbox for the must-happen side effects (inventory and the customer email), while allowing analytics to stay best-effort."
+      ],
+      "signals": {
+        "present": [
+          "unsubscribe|AbortSignal|removeEventListener|\\.off\\(",
+          "outbox|queue",
+          "commit"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 6,
+      "name": "go-visitor-is-a-type-switch",
+      "prompt": "We have a small AST for our pricing-rule DSL in Go: node types Const, Var, Add, Mul and If, all implementing a Node interface with an Eval(env map[string]float64) float64 method. I now need a pretty-printer and a validator, and there'll be more operations later. Should I implement the Visitor pattern with Accept methods on every node?",
+      "expected_output": "Recommends a type switch over a sealed Node interface (an unexported marker method) instead of Accept/Visit double dispatch, because Go's type switch already dispatches on the concrete type. Addresses exhaustiveness, which Go does not check: the gochecksumtype linter or a default case that returns an error. Names the trade-off: new operations are cheap, new node types mean updating every switch.",
+      "files": [],
+      "expectations": [
+        "Recommends implementing each new operation as a function with a type switch over the node types, instead of Accept methods and a Visitor interface.",
+        "Explains why: Go's type switch already dispatches on the concrete type, so Accept/Visit double dispatch is boilerplate that buys nothing here.",
+        "Addresses exhaustiveness: Go does not check that a type switch covers every node type, and recommends the gochecksumtype linter with a sealed interface, or at least a default case that returns an error or panics.",
+        "Recommends sealing the Node interface with an unexported method so no other package can add node types.",
+        "Names the trade-off: adding an operation is a new function, while adding a node type means updating every switch.",
+        "Code sketches contain no Accept method."
+      ],
+      "signals": {
+        "present": [
+          "\\.\\(type\\)",
+          "gochecksumtype|exhaustive",
+          "unexported|sealed"
+        ],
+        "absent": [
+          "\\) Accept\\(\\w+ \\w*Visitor\\)"
+        ]
+      }
+    }
+  ]
+}
