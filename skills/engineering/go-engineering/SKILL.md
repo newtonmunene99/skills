@@ -37,6 +37,10 @@ Apply measurement-driven performance patterns from the [Go Optimization Guide](h
 
 - **Code style, naming, formatting, readability, simplicity, and idiomatic Go practices** → Read [references/styleguide/guide.md](references/styleguide/guide.md) for core principles, [references/styleguide/best-practices.md](references/styleguide/best-practices.md) for idioms, and [references/styleguide/decisions.md](references/styleguide/decisions.md) for rationale.
 
+### Design patterns
+
+- **SOLID and the GoF patterns (Builder, Strategy, Observer, Visitor, Singleton and the rest) in idiomatic Go** → Use the `design-patterns` skill if it is installed; its Go reference covers functional options, `iter.Seq`, consumer-side interfaces and which patterns vanish in Go.
+
 ## Quick Cues
 
 - **Connection reuse (HTTP)**: Drain response body before closing (e.g. `io.Copy(io.Discard, resp.Body)` then `resp.Body.Close()`); otherwise the client will not reuse connections.

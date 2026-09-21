@@ -1,0 +1,5 @@
+interface:
+  display_name: "Design Patterns"
+  short_description: "SOLID and GoF patterns, idiomatic per language"
+  brand_color: "#F59E0B"
+  default_prompt: "Use $design-patterns to pick the right pattern for this design problem, in idiomatic form for this language."
