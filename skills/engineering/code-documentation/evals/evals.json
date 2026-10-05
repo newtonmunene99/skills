@@ -283,8 +283,6 @@
       "files": [
         "evals/files/project-style-guide-wins/CONTRIBUTING.md",
         "evals/files/project-style-guide-wins/billing/__init__.py",
-        "evals/files/project-style-guide-wins/billing/__pycache__/__init__.cpython-314.pyc",
-        "evals/files/project-style-guide-wins/billing/__pycache__/proration.cpython-314.pyc",
         "evals/files/project-style-guide-wins/billing/proration.py",
         "evals/files/project-style-guide-wins/pyproject.toml"
       ],
