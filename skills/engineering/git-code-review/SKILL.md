@@ -8,7 +8,12 @@ description: >-
   works on private git servers, self-hosted GitLab and Gitea just as well as
   GitHub — platform CLIs are optional extras, never requirements. Use when
   asked to review changes, a branch, a commit, a range, someone's recent work,
-  or an MR/PR, and before merging.
+  or an MR/PR, and whenever the user wants feedback on changes before pushing
+  or merging, even without the word "review": "look over my diff",
+  "sanity-check this before I push", "what do you think of these changes", "is
+  this ready to merge". Owns the review workflow and the report; language
+  skills (go-engineering, python-engineering, protocol-buffers) supply idiom
+  checks and design-patterns supplies design findings.
 disable-model-invocation: false
 compatibility: >-
   Requires git. Platform CLIs (gh, glab) are optional extras — reviews fall
@@ -76,25 +81,35 @@ mode.
 - **Code that looks wrong but is actually correct.** Read it again before writing it up.
 - **Pedantic nitpicks** a senior engineer would skip.
 - **Anything a linter or formatter will catch.** Do not run the linter to check, either.
-
-**Builds and typechecks are allowed; linters and formatters are not.** When the diff
-touches a dependency manifest, a lockfile, or build config, or when a compile failure
-is otherwise plausible, run the project's build or typecheck once — `go build ./...`,
-`tsc --noEmit`, `cargo check`. That is how "will fail to compile" gets confirmed rather
-than guessed. Do not run `go vet`, eslint, ruff, or any formatter. Running the tests is
-optional. Lockfile or tidy drift (`go mod tidy -diff`, a lockfile out of step with its
-manifest) is not a standalone finding; fold the fix into the finding it relates to.
 - **General quality concerns**, unless a project guideline requires them.
 - **Rules explicitly silenced in code** — `eslint-disable`, `nolint`, `# noqa`. The
   author already made that call.
 - **Speculative issues** that depend on runtime state you cannot verify.
 - **Style that is not codified** in the project's own guidelines.
 
+**Builds and typechecks are allowed; linters and formatters are not.** When the diff
+touches a dependency manifest, a lockfile, or build config, or when a compile failure
+is otherwise plausible, run the project's build or typecheck once — `go build ./...`,
+`tsc --noEmit`, `cargo check`. That is how "will fail to compile" gets confirmed rather
+than guessed. Do not run `go vet`, eslint, ruff, or any formatter: what they report is
+out of scope anyway. Running the tests is optional. Lockfile or tidy drift
+(`go mod tidy -diff`, a lockfile out of step with its manifest) is not a standalone
+finding; fold the fix into the finding it relates to.
+
 **In a merge review, if you are not certain an issue is real, do not flag it.** A
 review with three confirmed findings is worth more than one with three findings
 and nine maybes, because the maybes teach the reader to skim. In a working-tree or
 history review, report the maybe as a Warning or Suggestion and say how sure you
 are, rather than dropping it.
+
+## Neighbours
+
+This skill owns the review of a diff, commit, branch or MR/PR: the scope, the signal
+bar and the report. When the change is in Go, Python or `.proto` files, use
+go-engineering, python-engineering or protocol-buffers as the checklist for
+language idiom, and design-patterns for pattern and abstraction findings. Their
+findings still go through this skill's signal bar and land in this skill's report,
+so one review never ships as two reports with two verdicts.
 
 ## When to Read Which Reference
 

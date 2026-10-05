@@ -37,18 +37,22 @@ unread.
 ```
 ## Code review — <branch or MR/PR ref>: <title or summary>
 
-<1-3 sentence summary and verdict>
+<1-3 sentence summary>
 
 Base: <base> → Head: <head> (<N> commits)
 
 ### Issues
 - <file>:<line> — <description> (<reason: bug | guideline | security>)
+
+**Verdict:** <Approve | Request changes>
 ```
 
 When there is nothing to report:
 
 ```
 No issues found. Checked for bugs and project guideline compliance.
+
+**Verdict:** Approve
 ```
 
 The `Base → Head` line matters more than it looks. It is how the author confirms you
@@ -81,6 +85,8 @@ of bounds.
 ### Positive notes
 
 <Good patterns worth calling out>
+
+**Verdict:** <Approve | Approve with nits | Request changes>
 ```
 
 For each finding give **file:line**, the **issue**, and the **fix** — with a snippet
@@ -96,17 +102,22 @@ something to act on; numbering praise alongside defects inflates the count and m
 the reader hunt for what actually needs fixing. The merge-review template has no
 Positive notes section; there, leave confirmations out or fold one into the summary.
 
-When reviewing more than one commit, list the commits included in the header so the
-scope is unambiguous.
+When reviewing more than one commit, list the commits in the header, as
+[scope-resolution.md](scope-resolution.md#multiple-commits) explains.
 
 ## Verdicts
 
-Every review ends with exactly one of these. Do not invent others ("Not mergeable
-yet", "Needs work"); the fixed set is what lets the reader act without parsing prose.
+Every review ends with a `**Verdict:**` line carrying exactly one of these, as the
+last line of the report. Do not invent others ("Not mergeable yet", "Needs work");
+the fixed set is what lets the reader act without parsing prose.
 
 - **Approve** — nothing blocking.
-- **Approve with nits** — nothing blocking, some suggestions the author can take or
-  leave.
+- **Approve with nits** — nothing Critical, only Warnings or Suggestions the author
+  can take or leave. Working-tree and history reviews only.
 - **Request changes** — at least one Critical finding.
+
+A merge review uses only **Approve** or **Request changes**. Its bar already
+excludes nits, so every entry under Issues blocks the merge, and any entry at all
+means Request changes.
 
 If the user wants the findings fixed, address Critical and Warning items first.

@@ -20,8 +20,11 @@ metadata and optional comment posting.
 Determine scope in this order:
 
 1. **User names a base branch** ("vs main", "against develop") → use it.
-2. **User gives an MR/PR number or URL** → inspect the remote, use the platform CLI
-   if available, otherwise ask for the base branch.
+2. **User gives an MR/PR number or URL** → inspect the remote and use the platform
+   CLI if available. Otherwise fetch the head by number —
+   `git fetch origin refs/merge-requests/<N>/head` on GitLab, `refs/pull/<N>/head` on
+   GitHub and Gitea — and detect the base as in item 3. Ask for the base only if
+   detection fails.
 3. **User says "current branch" / "my changes for merge"** → detect the default branch:
    ```bash
    git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@'
@@ -33,11 +36,15 @@ Determine scope in this order:
 Core commands, which work on every host:
 
 ```bash
-git fetch origin <base> <head> 2>/dev/null   # if refs may be stale
+git fetch origin <base> <head>    # if refs may be stale
 git log --oneline <base>..<head>
-git diff <base>...<head>                      # three-dot: changes on head since diverging
+git diff <base>...<head>           # three-dot: changes on head since diverging
 git diff --stat <base>...<head>
 ```
+
+If the fetch fails — no network, no credentials — carry on with the local refs and
+say so in the review. A silent failure means reviewing stale code with no one aware
+of it.
 
 ### Optional hosted metadata
 
@@ -46,7 +53,7 @@ Detect the remote with `git remote get-url origin`:
 | Remote pattern                   | CLI (if installed)             | Fetch title / body / state                                                    |
 | -------------------------------- | ------------------------------ | ----------------------------------------------------------------------------- |
 | github.com                       | `gh pr view`, `gh pr diff`     | `--json title,body,state,isDraft,headRefOid`                                  |
-| gitlab.com or self-hosted GitLab | `glab mr view`, `glab mr diff` | `--json` fields                                                               |
+| gitlab.com or self-hosted GitLab | `glab mr view`, `glab mr diff` | `-F json` (`--output json`)                                                   |
 | Other / private / no CLI         | —                              | Use `git log` subject lines and the branch name; ask the user for a description if needed |
 
 **If a CLI is unavailable or auth fails, continue with `git diff`.** Do not stop the
@@ -68,8 +75,6 @@ Stop if any of these apply, and say which:
 - **Already reviewed** — only when the user did not ask for a re-review *and*
   platform comments show a recent substantive review *and* there are no new commits
   since it.
-
-Review changes authored by AI or automation exactly like any other.
 
 ## Step 2 — Load project guidelines
 
@@ -136,7 +141,9 @@ No issues found. Checked for bugs and project guideline compliance.
 Platform commands:
 
 - **GitHub:** `gh pr comment`; `gh api .../pulls/.../comments` for inline.
-- **GitLab:** `glab mr note`; `glab mr note --line` or the API for inline.
+- **GitLab:** `glab mr note create <N> -m ...`; for inline, add `--file <path> --line <n>`.
+  Older glab releases lack those flags; use `glab api` against the MR's
+  `discussions` endpoint instead.
 - **Other hosts:** output `file:line` findings with suggested comment text. Do not
   guess at an API.
 

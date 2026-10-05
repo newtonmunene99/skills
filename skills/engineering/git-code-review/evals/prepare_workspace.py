@@ -5,6 +5,13 @@ Creates <skill-name>-workspace/iteration-N/eval-{id}/ with:
   - eval_metadata.json (eval_id, eval_name, prompt, expectations)
   - with_skill/run-1/outputs/
   - without_skill/run-1/outputs/
+  - <config>/run-1/repo/, for an eval with a fixture under evals/files/<name>/
+
+A fixture is plain files, since a committed .git directory would be recorded as a
+nested repo rather than as files. `base/` becomes the first commit on `main`;
+`change/` is laid over it, then committed on `fixture_branch` when the eval sets
+one, or left uncommitted as a working-tree change when it does not. Each config
+gets its own repo so a run that edits files cannot leak into the other.
 
 The workspace is a sibling of the skill directory and is gitignored
 (`*-workspace/`), so runs never pollute the repo.
@@ -19,8 +26,42 @@ Usage:
 
 import argparse
 import json
+import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
+
+# A fixed identity and date keep commit SHAs identical across iterations.
+GIT_ENV = {
+    "GIT_AUTHOR_NAME": "Sam Rivera",
+    "GIT_AUTHOR_EMAIL": "sam@example.com",
+    "GIT_COMMITTER_NAME": "Sam Rivera",
+    "GIT_COMMITTER_EMAIL": "sam@example.com",
+    "GIT_AUTHOR_DATE": "2026-09-28T10:00:00Z",
+    "GIT_COMMITTER_DATE": "2026-09-28T10:00:00Z",
+}
+
+
+def git(repo: Path, *args: str) -> None:
+    env = {**os.environ, **GIT_ENV}
+    subprocess.run(["git", *args], cwd=repo, env=env, check=True, capture_output=True)
+
+
+def build_repo(fixture: Path, repo: Path, branch: str | None, message: str) -> None:
+    """Create a git repo from fixture/base, with fixture/change applied on top."""
+    if repo.exists():
+        shutil.rmtree(repo)
+    shutil.copytree(fixture / "base", repo)
+    git(repo, "init", "-q", "-b", "main")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "initial import")
+    if branch:
+        git(repo, "checkout", "-q", "-b", branch)
+    shutil.copytree(fixture / "change", repo, dirs_exist_ok=True)
+    if branch:
+        git(repo, "add", "-A")
+        git(repo, "commit", "-q", "-m", message)
 
 
 def main() -> None:
@@ -77,8 +118,21 @@ def main() -> None:
         }
         (eval_dir / "eval_metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
 
+        fixture = skill_dir / "evals" / "files" / metadata["eval_name"]
+        if (fixture / "base").is_dir():
+            # Tells the runner to start in the built repo, not the raw fixture files.
+            metadata["repo"] = "<config>/run-1/repo"
+            (eval_dir / "eval_metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
         for config in ("with_skill", "without_skill"):
-            (eval_dir / config / "run-1" / "outputs").mkdir(parents=True, exist_ok=True)
+            run_dir = eval_dir / config / "run-1"
+            (run_dir / "outputs").mkdir(parents=True, exist_ok=True)
+            if (fixture / "base").is_dir():
+                build_repo(
+                    fixture,
+                    run_dir / "repo",
+                    entry.get("fixture_branch"),
+                    entry.get("fixture_commit_message", "change"),
+                )
 
     print(f"Created {iter_dir}")
     print(f"  Skill:     {skill_name}")
