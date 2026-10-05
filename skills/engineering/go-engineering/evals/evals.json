@@ -52,7 +52,7 @@
       ],
       "expectations": [
         "store/store.go declares an exported sentinel error (e.g. var ErrNotFound = errors.New(\"...\")) and Get returns it, wrapped or directly, for a missing order.",
-        "Where Get adds the order ID to the sentinel, %w is placed at the end of the format string (e.g. fmt.Errorf(\"order %s: %w\", id, ErrNotFound)), not at the start.",
+        "Where Get adds the order ID, it wraps with %w (either fmt.Errorf(\"%w: order %q\", ErrNotFound, id), which the Google style guide prefers for sentinels, or \"order %s: %w\"), so errors.Is still matches; it does not format the sentinel with %v or %s.",
         "service/service.go is changed from %v to %w so the sentinel survives the extra layer; the response notes that %v would break errors.Is.",
         "api/handler.go uses errors.Is(err, store.ErrNotFound) and no longer calls strings.Contains on err.Error().",
         "The capitalized error string \"Order ID is empty\" in Put is changed to lowercase (or the response flags it), since Go error strings are not capitalized."
