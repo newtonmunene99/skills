@@ -53,15 +53,19 @@ Supported agents include **Cursor**, **Codex**, **Claude Code**, **OpenCode**,
 - **references/api-docs.md** — per-language doc conventions and the full protobuf commenting rules
 - **references/readmes.md** — README spine, section conventions, structural conventions
 - **references/okf.md** — OKF v0.2 bundles, concept frontmatter, trust and provenance families, Attested Computation
+- **scripts/py_same_code.py** — checks that two Python files differ only in comments and docstrings
 - **agents/openai.yaml** — optional Codex/Copilot display metadata (not read by the model)
-- **evals/** — 5 eval prompts with expectations, and the harness to run them
+- **evals/** — 9 eval prompts with expectations, fixture projects, and the harness to run them
 
 ## Related skills
 
 - **protocol-buffers** — AIP naming, resource design, and standard methods. This
   skill covers the doc comments; that one covers the contract they describe.
-- **python-engineering** — full Google-style docstring mechanics (`Args:` /
-  `Returns:` / `Raises:`).
+- **go-engineering**, **python-engineering** — the code itself. This skill owns doc
+  comment wording and coverage; `python-engineering` keeps the Google-style
+  docstring mechanics (`Args:` / `Returns:` / `Raises:`).
+- **git-code-review** — reviewing a diff, branch or PR as a whole. This skill
+  supplies the documentation findings.
 
 ## License
 

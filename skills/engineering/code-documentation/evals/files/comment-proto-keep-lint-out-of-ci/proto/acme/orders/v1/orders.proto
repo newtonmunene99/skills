@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package acme.orders.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/acme/orders/gen/acme/orders/v1;ordersv1";
+
+service OrderService {
+  rpc GetOrder(GetOrderRequest) returns (Order);
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (Order);
+}
+
+message Order {
+  string name = 1;
+  string customerId = 2;
+  int64 total_micros = 3;
+  string currency_code = 4;
+  OrderStatus status = 5;
+  google.protobuf.Timestamp create_time = 6;
+}
+
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_PENDING = 1;
+  ORDER_STATUS_PAID = 2;
+  ORDER_STATUS_SHIPPED = 3;
+  ORDER_STATUS_CANCELLED = 4;
+}
+
+message GetOrderRequest {
+  string name = 1;
+}
+
+message ListOrdersRequest {
+  string parent = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListOrdersResponse {
+  repeated Order orders = 1;
+  string next_page_token = 2;
+}
+
+message CancelOrderRequest {
+  string name = 1;
+}

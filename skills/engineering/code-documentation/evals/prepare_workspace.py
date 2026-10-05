@@ -6,6 +6,11 @@ Creates <skill-name>-workspace/iteration-N/eval-{id}/ with:
   - with_skill/run-1/outputs/
   - without_skill/run-1/outputs/
 
+Evals that list `files` (paths under evals/files/<eval-name>/) also get the
+fixture project twice: a pristine copy in inputs/ to diff against, and a working
+copy in each run's project/ for the agent to edit in place. The relative layout
+under evals/files/<eval-name>/ is kept, so the project looks like a real repo.
+
 The workspace is a sibling of the skill directory and is gitignored
 (`*-workspace/`), so runs never pollute the repo.
 
@@ -19,8 +24,30 @@ Usage:
 
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
+
+
+def copy_fixture(skill_dir: Path, entry: dict, dest: Path) -> None:
+    """Copies the eval's fixture files into dest, keeping their project layout.
+
+    Paths are relative to the skill root. Anything under
+    evals/files/<eval-name>/ lands at the same relative path inside dest; a file
+    elsewhere lands at dest/<basename>.
+    """
+    fixture_root = skill_dir / "evals" / "files" / entry.get("name", "")
+    for rel in entry.get("files", []):
+        src = skill_dir / rel
+        if not src.is_file():
+            print(f"Error: fixture file {src} not found", file=sys.stderr)
+            sys.exit(1)
+        try:
+            target = dest / src.relative_to(fixture_root)
+        except ValueError:
+            target = dest / src.name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, target)
 
 
 def main() -> None:
@@ -74,11 +101,18 @@ def main() -> None:
             "eval_name": entry.get("name", f"eval-{eid}"),
             "prompt": entry.get("prompt", ""),
             "expectations": entry.get("expectations", []),
+            "files": entry.get("files", []),
         }
         (eval_dir / "eval_metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
 
+        if entry.get("files"):
+            copy_fixture(skill_dir, entry, eval_dir / "inputs")
+
         for config in ("with_skill", "without_skill"):
-            (eval_dir / config / "run-1" / "outputs").mkdir(parents=True, exist_ok=True)
+            run_dir = eval_dir / config / "run-1"
+            (run_dir / "outputs").mkdir(parents=True, exist_ok=True)
+            if entry.get("files"):
+                copy_fixture(skill_dir, entry, run_dir / "project")
 
     print(f"Created {iter_dir}")
     print(f"  Skill:     {skill_name}")
