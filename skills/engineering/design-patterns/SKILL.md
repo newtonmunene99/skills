@@ -1,18 +1,20 @@
 ---
 name: design-patterns
 description: >-
-  Applies SOLID principles and the classic design patterns in the idiomatic form
-  for Go, Python and TypeScript, and pushes back when a pattern is not earned.
-  Covers creational (Factory Method, Abstract Factory, Builder, Prototype,
-  Singleton), structural (Adapter, Bridge, Composite, Decorator, Facade,
-  Flyweight, Proxy) and behavioral patterns (Chain of Responsibility, Command,
-  Interpreter, Iterator, Mediator, Memento, Observer, State, Strategy, Template
-  Method, Visitor). Use when choosing a pattern for a design problem, asking
-  which pattern fits, refactoring a growing switch or if/else chain, reviewing
-  code for SOLID violations or over-engineering, deciding whether an
-  abstraction is worth it, or writing a given pattern idiomatically in Go,
-  Python or TypeScript rather than as a Java class diagram.
-disable-model-invocation: false
+  Applies SOLID and the classic design patterns in idiomatic Go, Python and
+  TypeScript, and pushes back when a pattern is not earned. Covers creational
+  (Factory Method, Abstract Factory, Builder, Prototype, Singleton), structural
+  (Adapter, Bridge, Composite, Decorator, Facade, Flyweight, Proxy) and
+  behavioral patterns (Chain of Responsibility, Command, Interpreter, Iterator,
+  Mediator, Memento, Observer, State, Strategy, Template Method, Visitor). Use
+  when choosing a pattern or asking which one fits, writing one idiomatically,
+  refactoring a growing switch, if/else chain or class, decoupling modules that
+  call each other, making code extensible, pluggable or "enterprise-grade",
+  adding an interface so something can be mocked, reviewing for SOLID
+  violations or over-engineering, or deciding whether an abstraction is worth
+  it. Use it even when no pattern is named. Whether a function is too complex
+  is code-complexity's call; a whole diff or PR review is git-code-review's,
+  which pulls this in for design findings.
 compatibility: >-
   Needs no tooling. The language references target Go 1.23+, Python 3.11+ and
   TypeScript 5+; the catalog and the SOLID guidance apply to any language.
@@ -153,6 +155,16 @@ one of each. For another language, use the closest one: Rust and Swift read like
 (no class inheritance, enums with `match`); Kotlin, Java and C# are close to the
 textbook; Ruby and PHP read like Python.
 
+## Neighbours
+
+- **Whether a function is too complex, or needs a refactor at all,** is
+  code-complexity's call, made from the metrics. Once a refactor is warranted, this
+  skill picks its shape.
+- **Reviewing a diff, commit, branch or MR/PR as a whole** belongs to
+  git-code-review, which owns the workflow and the report. This skill supplies the
+  design findings for it, as the language skills supply the idiom checks; none of
+  them writes the report.
+
 ## Quick Cues
 
 - **Singleton is the pattern to push back on most.** A global hides a dependency,
@@ -161,8 +173,10 @@ textbook; Ruby and PHP read like Python.
   truly needed, Go has `sync.OnceValue`, Python has a module-level value or
   `functools.cache`, and TypeScript has a module export.
 - **A Strategy with one strategy is indirection.** So is a Factory with one product
-  and an interface with one implementation and no test that needs a fake. Wait for
-  the second real case, and extract on the third.
+  and an interface with one implementation and no test that needs a fake. Do not
+  abstract before a second real case exists; with a third, extract. An interface
+  "for testability" belongs at the consumer, added when a test actually needs the
+  fake.
 - **Adapter, Decorator and Proxy look identical: a wrapper.** Name them by intent.
   Adapter changes the interface, Decorator adds behavior behind the same interface,
   Proxy controls access behind the same interface.
@@ -173,8 +187,6 @@ textbook; Ruby and PHP read like Python.
 - **Every subscribe needs an unsubscribe.** Observer's classic bug is the leak: a
   listener outliving its owner. In Go, a channel-based observer also needs a policy
   for slow subscribers: block, drop, or buffer.
-- **Template Method needs inheritance.** In Go, and in any code that prefers
-  composition, pass the varying steps as functions instead.
 - **In Go, accept interfaces and return concrete types.** An interface declared next
   to its only implementation is Java written in Go. Declare it where it is consumed.
 
@@ -189,8 +201,7 @@ textbook; Ruby and PHP read like Python.
 - **Pattern names in type names where a domain name would do.** `PaymentStrategy` is
   weaker than `Pricer`; `NotificationObserverManager` says nothing about the domain.
 - **Inheritance for code reuse.** Deep Template Method chains, where understanding one
-  method means reading four classes. Compose instead.
+  method means reading four classes. Template Method needs inheritance; pass the
+  varying steps as functions instead.
 - **SOLID as a scoring rubric.** Citing a principle without naming the concrete change
   it makes painful. "Violates SRP" with no second actor is an opinion, not a finding.
-- **Interfaces "for testability" on every type.** Add the seam where a test actually
-  needs a fake, at the consumer, when that test is written.

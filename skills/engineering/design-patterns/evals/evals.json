@@ -91,19 +91,20 @@
       ],
       "signals": {
         "present": [
-          "YAGNI|no (current )?force|not (yet )?(worth|needed|justified)|premature|overkill|over-engineer",
-          "1000"
+          "hold off|YAGNI|no (current )?force|not (yet )?(worth|needed|justified)|premature|overkill|over-?engineer",
+          "func LateFee\\(daysLate int, m MemberType\\) int \\{"
         ],
         "absent": [
-          "type \\w*(Strategy|Policy|Calculator) interface"
+          "type \\w*(Strategy|Policy|Calculator) interface",
+          "func LateFee\\([^)]*\\) \\(int, error\\)"
         ]
       }
     },
     {
       "id": 5,
       "name": "ts-observer-durable-and-leak-free",
-      "prompt": "In our TypeScript backend, when an order ships we update inventory, email the customer, and send an analytics event. Each of those is owned by a different module, and right now OrderService.ship() imports and calls all three directly. How should we decouple this?",
-      "expected_output": "An Observer-style typed event (a typed emitter or EventTarget) that OrderService publishes after the shipment is committed, with subscribe returning an unsubscribe. Makes the delivery decisions explicit: one failing listener must not stop the others or fail the shipment. Flags that in-process events are lost on a crash, so inventory and the customer email should go through a queue or transactional outbox, while analytics can stay in-process.",
+      "prompt": "In our TypeScript backend, when an order ships we update inventory, email the customer, and send an analytics event. Each of those is owned by a different module, and right now OrderService.ship() imports and calls all three directly. Separately, our WebSocket gateway wants to push a \"your order shipped\" message to the customer's open browser tabs, so each socket connection would subscribe to shipped events while it's connected. How should we decouple this?",
+      "expected_output": "An Observer-style typed event (a typed emitter or EventTarget) that OrderService publishes after the shipment is committed, with subscribe returning an unsubscribe. Makes the delivery decisions explicit: one failing listener must not stop the others or fail the shipment. Flags that in-process events are lost on a crash, so inventory and the customer email should go through a queue or transactional outbox, while analytics can stay in-process. Flags the leak: each WebSocket connection subscribes to a process-wide emitter, so its listener must be removed when the socket closes.",
       "files": [],
       "expectations": [
         "Proposes that OrderService publishes a typed 'order shipped' event that the inventory, email and analytics modules subscribe to, so OrderService no longer imports them.",
@@ -111,39 +112,118 @@
         "The subscription API returns an unsubscribe function or accepts an AbortSignal, so a subscriber can be removed.",
         "Addresses error isolation: a failing listener does not stop the other listeners and does not fail or roll back the shipment.",
         "Publishes the event only after the shipment state is committed, not before or mid-transaction.",
-        "Flags that in-process events are lost if the process crashes, and recommends a durable queue or a transactional outbox for the must-happen side effects (inventory and the customer email), while allowing analytics to stay best-effort."
+        "Flags that in-process events are lost if the process crashes, and recommends a durable queue or a transactional outbox for the must-happen side effects (inventory and the customer email), while allowing analytics to stay best-effort.",
+        "Flags the listener leak for the per-connection subscriptions: each WebSocket connection's listener must be removed when its socket closes (unsubscribe or abort in the close handler), or the process-wide emitter keeps every closed connection's listener, and its socket, alive."
       ],
       "signals": {
         "present": [
           "unsubscribe|AbortSignal|removeEventListener|\\.off\\(",
           "outbox|queue",
-          "commit"
+          "commit",
+          "leak|MaxListeners|outliv"
         ],
         "absent": []
       }
     },
     {
       "id": 6,
-      "name": "go-visitor-is-a-type-switch",
-      "prompt": "We have a small AST for our pricing-rule DSL in Go: node types Const, Var, Add, Mul and If, all implementing a Node interface with an Eval(env map[string]float64) float64 method. I now need a pretty-printer and a validator, and there'll be more operations later. Should I implement the Visitor pattern with Accept methods on every node?",
-      "expected_output": "Recommends a type switch over a sealed Node interface (an unexported marker method) instead of Accept/Visit double dispatch, because Go's type switch already dispatches on the concrete type. Addresses exhaustiveness, which Go does not check: the gochecksumtype linter or a default case that returns an error. Names the trade-off: new operations are cheap, new node types mean updating every switch.",
+      "name": "go-builder-is-functional-options",
+      "prompt": "I'm writing a Go client for our internal billing API. The Client needs a base URL and an API key, and optionally a timeout (default 10s), a max retry count (default 2), a *slog.Logger and an http.RoundTripper so tests can stub the transport. Can you write a ClientBuilder with chained setters (SetBaseURL, SetAPIKey, SetTimeout, ...) and a Build() method? Timeout has to be positive and retries between 0 and 5.",
+      "expected_output": "Pushes back on the chained-setter builder, which is Java's workaround for missing optional arguments, and writes NewClient(baseURL, apiKey string, opts ...Option) with functional options, defaults set before the options run, and validation errors returned from the constructor. Mentions that a plain Config struct is an equally idiomatic choice when every field is plain data.",
       "files": [],
       "expectations": [
-        "Recommends implementing each new operation as a function with a type switch over the node types, instead of Accept methods and a Visitor interface.",
-        "Explains why: Go's type switch already dispatches on the concrete type, so Accept/Visit double dispatch is boilerplate that buys nothing here.",
-        "Addresses exhaustiveness: Go does not check that a type switch covers every node type, and recommends the gochecksumtype linter with a sealed interface, or at least a default case that returns an error or panics.",
-        "Recommends sealing the Node interface with an unexported method so no other package can add node types.",
-        "Names the trade-off: adding an operation is a new function, while adding a node type means updating every switch.",
-        "Code sketches contain no Accept method."
+        "Recommends functional options (or a plain Config struct) instead of a builder type with chained setters, and says why: the builder mirrors every field as a setter to work around a lack of optional arguments that Go solves differently.",
+        "Makes the base URL and API key plain positional parameters of the constructor, so a client cannot be built without them, rather than setters or options that can be forgotten.",
+        "Sets the defaults (10s timeout, 2 retries, a default logger and transport) in the constructor before applying the options.",
+        "Invalid values (non-positive timeout, retries outside 0 to 5) make the constructor return an error, for example through options of type func(*Client) error or validation after the options run, rather than panicking or silently clamping.",
+        "Notes that a Config struct is an equally good or more discoverable choice when every setting is plain data, and gives a reason to pick one or the other.",
+        "The delivered code has no ClientBuilder type and no Build() method."
       ],
       "signals": {
         "present": [
-          "\\.\\(type\\)",
-          "gochecksumtype|exhaustive",
-          "unexported|sealed"
+          "func With\\w+\\(",
+          "\\.\\.\\.\\s*\\w*Option\\b",
+          "Config"
         ],
         "absent": [
-          "\\) Accept\\(\\w+ \\w*Visitor\\)"
+          "type \\w*Builder struct",
+          "\\) Build\\(\\)"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "name": "ts-wrappers-named-by-intent",
+      "prompt": "Our TypeScript service calls a third-party geocoding SDK: `geocoder.geocode(address: string): Promise<GeoResult>`. It's flaky (random 503s), we get rate-limited with 429s, and the same addresses come up over and over. I want to wrap it so failed calls are retried and results are cached for an hour. What should I call these wrappers, and how should I structure them?",
+      "expected_output": "Defines a small app-owned Geocoder interface and writes retry and caching as functions that take a Geocoder and return a Geocoder, composed as cache(retry(sdk)). Names them by intent: retry is a Decorator, caching sits on the Decorator/Proxy border, and an Adapter appears only if the SDK's shape is translated into the app's own. Gets the details right: cache outside retry, cache the in-flight promise and evict failures, retry only transient errors with backoff and Retry-After.",
+      "files": [],
+      "expectations": [
+        "Declares a small interface owned by the application (for example Geocoder with geocode), and each wrapper takes and returns that same interface so the wrappers compose.",
+        "Names each wrapper by intent: the retry wrapper is a Decorator (same interface, added behavior); the cache is a Decorator or a caching Proxy, with the reason given. It calls something an Adapter only if that part changes the SDK's interface into the app's own.",
+        "Implements the wrappers as functions or small objects around the interface, not as a subclass chain such as class RetryingGeocoder extends SdkClient.",
+        "Says wrapper order matters and puts the cache outside the retry, so a cache hit never retries and one logical call is cached once.",
+        "Does not cache failures (a rejected promise is evicted) and caches the in-flight promise so concurrent lookups of the same address share one SDK call.",
+        "Retries only transient failures (503, 429, network errors) with backoff, honoring Retry-After on 429, and does not retry a 4xx such as an invalid address."
+      ],
+      "signals": {
+        "present": [
+          "Decorator",
+          "Proxy",
+          "Retry-After",
+          "cache\\.delete|evict|(don't|do not|never) cache (the )?(failures|errors|rejections)"
+        ],
+        "absent": [
+          "class \\w+ extends \\w*(Client|Geocoder|Sdk|SDK)\\b"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "name": "go-mock-interface-at-consumer",
+      "prompt": "I can't unit test our Go ReportService because it calls *s3.Client (aws-sdk-go-v2) directly: PutObject in Publish and GetObject in Fetch. Can you add an interface so I can mock S3? I was thinking of an IS3Client interface in our internal/storage package that wraps all the S3 methods we might need, plus an S3ClientImpl that delegates to the real client.",
+      "expected_output": "Declares a small, unexported interface in ReportService's own package with only PutObject and GetObject, using the exact *s3.Client signatures so the real client satisfies it implicitly. No IS3Client, no S3ClientImpl, no wrapper, no methods 'we might need'. ReportService takes the interface in its constructor, main passes the *s3.Client, and the test uses a small hand-written fake.",
+      "files": [],
+      "expectations": [
+        "Declares the interface in the package that consumes it (where ReportService lives), not in internal/storage next to the implementation, and explains that Go interfaces are satisfied implicitly so the consumer can own it.",
+        "The interface has only the two methods ReportService uses, PutObject and GetObject, not every S3 method that might be needed later.",
+        "The method signatures match *s3.Client exactly (ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)), so the real *s3.Client satisfies the interface with no wrapper or S3ClientImpl delegate type.",
+        "Names the interface by role, without an I prefix or Impl suffix (for example objectStore or blobStore).",
+        "ReportService receives the interface through its constructor, and the wiring code passes the real *s3.Client.",
+        "The test uses a small hand-written fake that implements the two methods, and the answer does not require a mock generator to make the code testable."
+      ],
+      "signals": {
+        "present": [
+          "PutObject\\(ctx context\\.Context, \\w+ \\*s3\\.PutObjectInput, \\w+ \\.\\.\\.func\\(\\*s3\\.Options\\)\\)",
+          "implicit|satisf"
+        ],
+        "absent": [
+          "type I[A-Z]\\w* interface",
+          "type \\w*Impl struct"
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "name": "python-state-is-a-transition-table",
+      "prompt": "Our order workflow (Python 3.12, Django) has statuses pending, paid, shipped, delivered, cancelled and refunded. Transition checks are scattered as `if order.status == ...` across views and Celery tasks, and we keep shipping bugs like refunding an order that was never paid. I want to implement the State pattern: an OrderState ABC with one subclass per status, each implementing pay(), ship(), deliver(), cancel() and refund(), raising for transitions that aren't allowed.",
+      "expected_output": "Agrees the force is real (scattered checks, real bugs) and centralizes the rules, but as an Enum plus one transition table and one transition function, not six classes times five methods. Explains that the states only gate transitions and carry no behavior of their own, so state classes would mostly raise 'not allowed' and scatter the graph. Raises a specific error naming the from and to states, and says when state classes would become right.",
+      "files": [],
+      "expectations": [
+        "Treats the force as real and centralizes the transition rules in one place, rather than leaving the scattered checks.",
+        "Recommends an Enum (or StrEnum) of statuses plus a single transition table (status to allowed next statuses, or (status, event) to next status) and one transition function or method, as the primary design.",
+        "Explains why the class-per-state design is the wrong shape here: the states only gate which transitions are allowed and carry no behavior of their own, so most of the 30 methods would just raise, and the transition graph would be spread across six classes where nobody can see it whole.",
+        "An invalid transition raises a specific domain exception that names the current and target status, rather than a generic exception or a silent no-op.",
+        "Says when state classes would become the right call: when each state carries real behavior of its own beyond allowing or refusing a transition.",
+        "Shows how the scattered checks in views and tasks get replaced by calls to the one transition function, and keeps side effects such as issuing the refund out of the table."
+      ],
+      "signals": {
+        "present": [
+          "\\bEnum\\b|StrEnum",
+          "TRANSITIONS|ALLOWED|transitions\\s*[:=]",
+          "Invalid\\w*Transition|IllegalTransition|TransitionError"
+        ],
+        "absent": [
+          "\\nclass \\w+\\(OrderState\\):"
         ]
       }
     }
