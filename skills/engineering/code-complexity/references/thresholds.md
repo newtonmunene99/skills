@@ -125,7 +125,7 @@ from, not as findings.
 | ESLint | `complexity` `max` | **10–15** | `20` | Default is double McCabe |
 | ESLint | `max-depth` | **4** | `4` | Default is already sensible |
 | ESLint | `sonarjs/cognitive-complexity` | **15** | `15` | The readability gate |
-| oxlint | `eslint/complexity` `max` | **10–15** | `20` | Restriction category, opt in |
+| oxlint | `eslint/complexity` `max` | **10–15** | `20` | Restriction category, opt in; companions too, no cognitive |
 | Go | `gocyclo` `min-complexity` | **10–15** | `30` | Default gates nothing |
 | Go | `gocognit` `min-complexity` | **15–20** | `30` | Default gates nothing |
 | Go | `nestif` `min-complexity` | **4–5** | `5` | Default is sensible |

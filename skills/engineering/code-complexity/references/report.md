@@ -81,7 +81,8 @@ Say where it went in the reply, as a path the user can click.
 
 If the report lands inside a git repository, check `.gitignore`. If
 `complexity-report.html` is not covered, **tell the user to add it** — do not edit
-`.gitignore` yourself, since this skill does not modify project files. One line in
+`.gitignore` yourself. The only project files this skill edits are the linter config
+and reasoned inline exemptions, and only after a yes in SKILL.md step 1a. One line in
 the reply is enough:
 
 > Wrote `complexity-report.html`. Worth adding to `.gitignore` — it's throwaway and
@@ -137,7 +138,7 @@ Scale the report to what you actually know:
 - **Full audit** — everything, including one or two `deepDives`.
 
 `gate` is the exception to "scale to what you know": include it at every size whenever
-the project's complexity gate is missing or not firing, because that finding does not
+the project's complexity gate is missing or not biting, because that finding does not
 get smaller when the review does.
 
 Do not pad. A histogram over six functions or a backlog of one item is worse than
@@ -254,8 +255,9 @@ Notes on the fields:
 - **`scores`** — omit a metric rather than writing `0` or `null`. A missing score
   renders an empty cell, which reads correctly as "not measured".
 - **`grade`** — see the caution under [Rules](#rules).
-- **`gate.status`** — one of `missing`, `toothless`, `sound`. It sets the pill and its
-  colour; `sound` reads green, the other two read as attention.
+- **`gate.status`** — one of `missing`, `toothless`, `sound`, the three gate states
+  from SKILL.md step 1 (`toothless` = not biting, `sound` = considered). It sets the
+  pill and its colour; `sound` reads green, the other two read as attention.
 - **`gate.current` / `gate.proposed`** — either, both, or neither. Two render side by
   side as a diff a reader can act on; one renders full width. Omit `current` when there
   is no config to show, which is the `missing` case.
@@ -288,7 +290,7 @@ Every other section describes code that is already written. This one describes w
 configured to catch the next batch, and it is the only part of the page with a shelf
 life longer than the review.
 
-Include it whenever the project's complexity gate is **missing** or **not firing** —
+Include it whenever the project's complexity gate is **missing** or **not biting** —
 the two states defined in
 [thresholds.md](thresholds.md#reviewing-an-existing-threshold). Include it for a
 `sound` gate too when it is worth confirming out loud that the numbers on this page

@@ -9,14 +9,16 @@ description: >-
   find complex or hard-to-maintain functions, choose or configure a complexity
   linter, decide what threshold to set, interpret a complexity report, audit a
   complexity config that is already in place, or judge whether a high-scoring
-  function actually needs refactoring.
+  function actually needs refactoring. Use it even when nobody says
+  "complexity": "this is unreadable", "too nested", "should I split this", or a
+  linter complaining about C901, gocyclo, gocognit or cognitive-complexity. When
+  a linter flags a branchy function, decide here whether it needs refactoring at
+  all, before design-patterns picks a shape.
 disable-model-invocation: false
 compatibility: >-
   Runs the project's own linters when installed (ESLint or oxlint, gocyclo,
   gocognit, golangci-lint, ruff), and recommends configuration when there is
   none or the configured gate is too loose to fire.
-  Judgement-heavy: the value is in classifying findings rather than counting
-  them, so it benefits from a high-reasoning model.
 model: best
 effort: high
 ---
@@ -82,9 +84,10 @@ and never a replacement for saying the findings out loud.
    without the tool is guesswork, and one run against a config that is about to be
    added is wasted. Ask two things in one message:
 
-   - **Configure first?** Yes: write the language reference's *Recommended config*
-     (and name the install command for the tool if it is absent), then run it and
-     audit against real numbers. No: audit as-is, and report the missing gate as a
+   - **Configure first?** Yes: write the language reference's *Recommended config*,
+     then run it and audit against real numbers. If the tool is absent, install it
+     only when the user's yes covers that; otherwise give the install command and
+     audit after they run it. No: audit as-is, and report the missing gate as a
      finding with the config block to paste.
    - **Where should the config live?** Offer the candidates you actually found, not a
      generic list: the repo root, the directory being audited (often the working
@@ -99,9 +102,10 @@ and never a replacement for saying the findings out loud.
 
    - Run the linter with the new config. For each existing violation the audit judges
      *expected* (a dispatch table, a guard ladder), add an inline exemption carrying a
-     reason (`# noqa: C901 - flat dispatch, one branch per command`). Never a bare
-     `noqa` and never a per-file blanket ignore. These are the only source edits this
-     skill makes; list every file touched in the reply.
+     reason (`# noqa: C901  # flat dispatch, one branch per command`). Never a bare
+     `noqa` and never a per-file blanket ignore. These, plus the temporary probe
+     below, are the only source edits this skill makes; list every file touched in
+     the reply.
    - Leave violations that *need attention* failing, and report them. Exempting them
      to get a green run is how a gate goes quiet on day one.
    - Confirm the gate fires: on a real finding, or on a throwaway deeply nested
@@ -143,6 +147,14 @@ and never a replacement for saying the findings out loud.
    user said they do not want a page, or for purely conceptual questions where nothing
    was measured. See
    [references/report.md](references/report.md).
+
+## Neighbours
+
+When a linter flags a branchy function, this skill decides whether it needs
+refactoring at all, because a dispatch table that scores high is often the right
+code. Once a refactor is warranted, **design-patterns** picks its shape. A review of
+a whole diff, branch or PR belongs to **git-code-review**; complexity findings feed
+into its report rather than replacing it.
 
 ## When to Read Which Reference
 
