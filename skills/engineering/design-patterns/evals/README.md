@@ -17,12 +17,12 @@ not the skill.
 
 | File | Purpose |
 | ---- | ------- |
-| `evals.json` | The 6 eval prompts, their expectations (what the grader checks) and regex signals |
+| `evals.json` | The 9 eval prompts, their expectations (what the grader checks) and regex signals |
 | `prepare_workspace.py` | Builds the workspace layout and `eval_metadata.json` from `evals.json` |
 | `grade_signals.py` | Scans answers for the declared signals, so the mechanical checks are reproducible |
 | `run_benchmark.sh` | Aggregates grading results and opens the review viewer |
 
-## What the six prompts target
+## What the nine prompts target
 
 Earlier suites in this repo scored close to 100% in both columns, because their
 expectations tested what the model already knew. These prompts are built around
@@ -36,18 +36,31 @@ at all.
 | 2 | `python-strategy-without-abc` | Builds the requested ABC with one-method subclasses. The force is real, so the answer is a registry of functions, not "leave it" and not the Java shape |
 | 3 | `solid-review-without-invention` | Lists a violation for each of the five principles. There is one real finding (dependency construction inside `sendToFinance`); the currency `switch` and `OrderRepo` are fine |
 | 4 | `no-force-no-pattern` | **Restraint.** "Make it enterprise-grade with patterns" over a 15-line function. The right answer adds no pattern and says what would change that |
-| 5 | `ts-observer-durable-and-leak-free` | Stops at "use an event emitter". Misses unsubscribe, error isolation, publishing after commit, and that in-process events are lost on a crash |
-| 6 | `go-visitor-is-a-type-switch` | Implements `Accept`/`Visit` double dispatch in Go, where a type switch over a sealed interface does the same, plus the exhaustiveness gap Go leaves open |
+| 5 | `ts-observer-durable-and-leak-free` | Stops at "use an event emitter". Misses unsubscribe, error isolation, publishing after commit, that in-process events are lost on a crash, and that per-connection subscribers to a process-wide emitter leak when sockets close |
+| 6 | `go-builder-is-functional-options` | **Obliges.** Writes the `ClientBuilder` with chained setters and `Build()` it was asked for, instead of functional options with required values as parameters and validation errors from the constructor |
+| 7 | `ts-wrappers-named-by-intent` | Calls every wrapper an Adapter, or subclasses the SDK. Misses wrapper order, caching the in-flight promise, evicting failures, and retrying only transient errors |
+| 8 | `go-mock-interface-at-consumer` | **Obliges.** Builds the requested `IS3Client` plus `S3ClientImpl` in the producer package, instead of a two-method interface at the consumer that `*s3.Client` already satisfies. No pattern is named in the prompt |
+| 9 | `python-state-is-a-transition-table` | Builds the requested `OrderState` ABC with a subclass per status, where the states only gate transitions and an `Enum` plus one transition table is the right shape |
 
 Evals 2 and 4 are the load-bearing pair, and they pull in opposite directions. Eval
 2 has a real force, so declining to refactor is wrong; eval 4 has none, so any
 pattern is wrong. A skill that only teaches "patterns are bad" passes 4 and fails 2.
 A model that obliges every request passes neither.
 
-Evals 1, 2 and 4 are adversarial: each prompt presupposes a design and asks only for
-its implementation. Agreeing is the easy path and the wrong answer.
+Evals 1, 2, 6, 8 and 9 are adversarial: each prompt presupposes a design and asks
+only for its implementation. Agreeing is the easy path and the wrong answer. Eval 8
+also checks that the skill fires on everyday wording ("add an interface so I can mock
+S3"), with no pattern named.
+
+Every prompt carries its code inline, so `files` is empty throughout and there are no
+fixtures to copy.
 
 ## Iteration 1 results (2026-09-21)
+
+Iteration 1 was **one run per configuration**. The generated `benchmark.md` says "3
+runs each" and its metadata has `runs_per_configuration: 3`, but `benchmark.json`
+holds 12 runs, one per eval and configuration. Its "±" figures are the spread across
+evals, not run-to-run variance.
 
 **94% with the skill, 80% without** (32 of 34 expectations against 27 of 34), at
 about 72k tokens and 117 s per run against 44k and 62 s. The aggregate script's token
@@ -74,11 +87,24 @@ What changed after this iteration:
 - **Signals fixed:** eval 1 missed "in `main`" written with backticks; eval 2's
   `refund|Protocol` matched the baseline through "refund".
 
-Still weak, to sharpen in iteration 2: evals 4, 5 and 6 barely separate the columns.
-The current model already declines patterns on a small function, knows the outbox
-pattern, and prefers a type switch to Visitor in Go. Harder prompts (more pressure to
-use a pattern, a design where leaks really matter) are needed to measure the skill
-there.
+Evals 4, 5 and 6 barely separated the columns: the current model already declines
+patterns on a small function, knows the outbox pattern, and prefers a type switch to
+Visitor in Go. Changes since, so iteration 1 is not like-for-like with later runs:
+
+- **Eval 3** gained the correctness-list expectation (7 now, 6 at iteration 1).
+- **Eval 4** keeps its prompt. Its restraint regex matched neither run, so the
+  signals now check that `LateFee` keeps its `int` signature and does not become
+  `(int, error)`, the change the skill run made.
+- **Eval 5** adds per-connection WebSocket subscribers to the prompt, so the
+  listener leak is a real risk, and checks it as its own expectation. Iteration 1
+  folded it into the unsubscribe expectation, and both columns failed it.
+- **Eval 6** was `go-visitor-is-a-type-switch` (6/6 in both columns). It is now
+  `go-builder-is-functional-options`; an eval 6 comparison across iterations compares
+  different prompts.
+- **Evals 7 to 9** are new: wrapper naming, a consumer-side interface asked for in
+  everyday words, and State as a transition table.
+
+The suite now has 54 expectations across 9 evals.
 
 ## A note on the signals
 

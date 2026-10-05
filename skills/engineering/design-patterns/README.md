@@ -64,6 +64,8 @@ Supported agents include **Cursor**, **Codex**, **Claude Code**, **OpenCode**,
   performance, and point here for design patterns.
 - **code-complexity** judges whether a branchy function actually needs a refactor;
   this skill picks the refactor's shape once it does.
+- **git-code-review** owns the review of a diff, branch or MR/PR and its report;
+  this skill supplies the design findings.
 
 ## Evals
 
