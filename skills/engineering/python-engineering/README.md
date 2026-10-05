@@ -58,7 +58,7 @@ Supported agents include **Cursor**, **Codex**, **Claude Code**, **OpenCode**, *
 - **references/modern/testing.md** — pytest patterns
 - **references/modern/tooling.md** — `pyproject.toml`, `uv`, `ruff`, `mypy`/`pyright`
 - **agents/openai.yaml** — optional Codex/Copilot display metadata (not read by the model)
-- **evals/** — 4 eval prompts with expectations, plus `lint-snippets.sh`, which checks every code sample against the skill's own ruff config
+- **evals/** — 8 eval prompts with expectations (three with fixture projects), trigger queries for description tuning, plus `lint-snippets.sh`, which checks every code sample against the skill's own ruff config
 
 ## License
 

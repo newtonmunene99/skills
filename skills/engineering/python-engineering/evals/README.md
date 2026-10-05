@@ -14,8 +14,11 @@ skill; it's measuring the model. Those are worth rewriting.
 
 | File | Purpose |
 | ---- | ------- |
-| `evals.json` | The 4 eval prompts and their expectations (what the grader checks) |
-| `prepare_workspace.py` | Builds the workspace directory layout and `eval_metadata.json` from `evals.json` |
+| `evals.json` | The 8 eval prompts and their expectations (what the grader checks) |
+| `files/<eval-name>/` | Fixture projects for the evals whose `files` list is non-empty (5–7) |
+| `trigger-evals.json` | Should-trigger / should-not-trigger queries for skill-creator's description optimizer |
+| `prepare_workspace.py` | Builds the workspace directory layout and `eval_metadata.json` from `evals.json`, and copies each eval's fixtures into its runs |
+| `grade_signals.py` | Scans the answers for each eval's regex `signals` |
 | `run_benchmark.sh` | Aggregates grading results and opens the review viewer |
 | `lint-snippets.sh` | Lints every ```python fence in the skill against the skill's own recommended ruff config |
 
@@ -44,6 +47,7 @@ python-engineering-workspace/
     ├── eval-1/
     │   ├── eval_metadata.json    # prompt + expectations, from evals.json
     │   ├── with_skill/run-1/
+    │   │   ├── project/          # fixture copy, only for evals with files
     │   │   ├── outputs/          # the agent writes here
     │   │   ├── grading.json      # the grader writes here
     │   │   └── timing.json       # tokens + duration, from the run notification
@@ -68,6 +72,11 @@ For every eval in `evals.json`, run the prompt **with** the skill and
 **without** it, saving to the matching `outputs/` directory. An agent following
 the skill-creator SKILL.md will spawn these as parallel subagents; launch the
 with-skill and baseline runs in the same batch so they finish together.
+
+Evals 5–7 work on a project rather than a pasted snippet. Start those runs in
+`<config>/run-1/project/`; each configuration gets its own copy, so a baseline
+never sees the with-skill run's edits. Save the final answer, and any files the
+agent changed, to `outputs/` as usual.
 
 Save `timing.json` (`total_tokens`, `duration_ms`) when each run completes —
 that data arrives in the run notification and isn't recoverable afterwards.
@@ -116,7 +125,7 @@ Separate from the prompt evals, and much cheaper to run.
 The skill tells agents to run `ruff check --fix`. If a code sample *in the
 skill* is something ruff would rewrite, the skill is teaching a style its own
 tooling immediately undoes — drift that's invisible on review and obvious to a
-linter. This script extracts all 140 ` ```python ` fences and lints them against
+linter. This script extracts every ` ```python ` fence and lints them against
 the skill's own `select` list:
 
 ```bash
@@ -146,9 +155,9 @@ present, and regexes that must be **absent**. `grade_signals.py` scans the
 answers for them so the mechanical expectations produce reproducible evidence
 instead of an impression that drifts between iterations.
 
-The absent-signals are the ones that need care. Three of the four in this suite
-were wrong on their first run, all the same way: they matched a *mention* rather
-than a *use*.
+The absent-signals are the ones that need care. Most of the first ones written
+for this suite were wrong on their first run, all the same way: they matched a
+*mention* rather than a *use*.
 
 - `utcnow` fired on a with-skill answer that was **warning** about
   `datetime.utcnow()`.
@@ -170,9 +179,9 @@ the regex until the delta looks good.
 Iteration 1 scored ~100% in both columns and taught us the expectations were
 testing what the model already knows. The iteration-2 set aims at the edges the
 graders found in the *baseline* answers — an upper cap on `requires-python`, a
-dangling `[project.scripts]` target, a proto whose prose promised soft delete
-while `Delete` returned `Empty`, `cancel_requested` instead of
-`requested_cancellation`.
+dangling `[project.scripts]` target, a wheel target that silently left the
+`src/` package out, a `frozen=True` dataclass with a list field whose hash
+failure went unmentioned, and the trailing separator in the review snippet.
 
 Most of that sharpening is **not** expressible as a regex. "States the
 consequence rather than sidestepping it", "the module it names actually appears
@@ -186,3 +195,14 @@ stayed flat.
 So read a flat signal delta as "no *textual* difference", never as "no
 difference". The grader is where the judgement lives; the scanner just keeps the
 mechanical half honest and reproducible.
+
+## Trigger queries
+
+`trigger-evals.json` is a separate set in the format skill-creator's description
+optimizer reads (`query`, `should_trigger`). The should-trigger half is everyday
+Python work that never says "style" or "best practices" — a broken FastAPI
+handler, a one-off CSV script, a mypy error. The should-not-trigger half is near
+misses that belong to a neighbour: a whole-branch review (git-code-review), a
+docstring coverage audit (code-documentation), a ruff complexity threshold
+(code-complexity), a pattern choice (design-patterns). A neighbour query that
+starts firing this skill means the description has grown too broad.

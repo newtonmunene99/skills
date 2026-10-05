@@ -220,7 +220,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 ```
 
-**Set `asyncio_default_fixture_loop_scope` explicitly.** pytest-asyncio 0.23+ emits a `DeprecationWarning` at collection when it's unset — and with `filterwarnings = ["error"]` above, that warning becomes an error that fails the entire suite before a single test runs.
+**Set `asyncio_default_fixture_loop_scope` explicitly.** pytest-asyncio 0.24+ raises a `PytestDeprecationWarning` from `pytest_configure` when it's unset. That runs before `filterwarnings` (or `pytest -W`) applies, so locally the warning is easy to miss — but a CI job that runs `python -W error -m pytest` or sets `PYTHONWARNINGS=error` turns it into an `INTERNALERROR` that exits before a single test runs. Setting it also pins which event loop async fixtures share, instead of leaving it to a default the plugin has said will change.
 
 Then any `async def test_...` is picked up automatically:
 

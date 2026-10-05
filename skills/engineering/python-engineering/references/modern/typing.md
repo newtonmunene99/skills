@@ -4,6 +4,27 @@ Covers patterns that go beyond the pyguide's §3.19: `Protocol`, `TypeVar` bound
 
 For pyguide baseline rules (line breaking, forward refs, `NoneType`, aliases, imports), see [../pyguide/type-annotations.md](../pyguide/type-annotations.md).
 
+## Contents
+
+- [Version floor](#version-floor)
+- [Choose the right generic tool](#choose-the-right-generic-tool)
+- [`Protocol` — structural typing](#protocol--structural-typing)
+- [`TypeVar` — bounds, constraints, variance](#typevar--bounds-constraints-variance)
+- [`ParamSpec` — typed decorators](#paramspec--typed-decorators)
+- [`Self`](#self)
+- [`@overload`](#overload)
+- [`override`](#override)
+- [`TypeGuard` and `TypeIs`](#typeguard-and-typeis)
+- [`Never` and `NoReturn`](#never-and-noreturn)
+- [`Final` and `ClassVar`](#final-and-classvar)
+- [`Annotated` — carry metadata alongside types](#annotated--carry-metadata-alongside-types)
+- [PEP 695 generics (3.12+)](#pep-695-generics-312)
+- [Callable signatures](#callable-signatures)
+- [Generic containers in signatures](#generic-containers-in-signatures)
+- [`Any` vs `object`](#any-vs-object)
+- [`cast` sparingly](#cast-sparingly)
+- [Common pitfalls](#common-pitfalls)
+
 ## Version floor
 
 The skill targets 3.11, but several names below landed later. On a version that predates them, import from `typing_extensions` — the runtime objects are the same and type checkers treat them identically.
