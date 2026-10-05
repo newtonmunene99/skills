@@ -63,22 +63,41 @@ a bundle exists or creation is confirmed.
 1. **Detect the existing style.** Match what the project already does when it is
    consistent and reasonable. If the style is inconsistent, propose a single house
    style before making sweeping changes rather than silently picking one.
-2. **Find what is actually missing**, not everything that *could* be documented.
-   Self-evident code does not need a comment; adding one costs a reader attention
-   and returns nothing. Build the inventory mechanically (AST, a `buf build`
-   descriptor set, `go doc -all`, the TS compiler's list of exported declarations)
-   before calling a file or module complete; never report "already documented" from
-   a skim. Exclude generated and vendored code (generator headers, `vendor/`,
-   `third_party/`, scaffolded packages) from inventory and edits, and say so.
+2. **Find what is actually missing.** Build the inventory mechanically (AST, a
+   `buf build` descriptor set, `go doc -all`, the TS compiler's list of exported
+   declarations) before calling a file or module complete; never report "already
+   documented" from a skim. Exclude generated and vendored code (generator headers,
+   `vendor/`, `third_party/`, scaffolded packages) from inventory and edits, and say
+   so. The inventory holds two kinds of gap, held to different bars:
+   - **Declarations** — packages, types, functions, methods, struct fields, consts
+     and vars, exported and unexported alike, interface-satisfying methods and
+     getters included. In an audit, or any pass asked to document or fill in a
+     file, package or module, every one gets a doc comment, and the pass is done
+     only when the inventory is empty. Unexported code is not second tier: its
+     readers are the maintainers, human or agent, who have to change it.
+     A trivial declaration gets one line; it does not get skipped as self-evident,
+     and "avoiding churn" never covers a missing doc. Test, benchmark, fuzz and
+     example functions are the exception: leave them out of the pass, report how
+     many lack docs, and offer them as a separate pass.
+   - **Inline comments** inside bodies. Here self-evident code needs nothing;
+     adding a comment costs a reader attention and returns nothing.
 3. **Leave acceptable documentation alone.** If a symbol already covers the why,
    the errors, and the edge cases at reasonable depth, do not reformat or rewrite
    it to match a style preference. This is the rule most worth holding on to: a
    documentation pass that rewrites everything it touches buries the real change
    in noise and makes the diff impossible to review. Churn is a failure mode.
+   Style alone is never a defect: a missing final period, `{Type}` tags or a
+   different phrasing stay as they are. Neither is a doc's length: the checklist of
+   what a good doc carries guides the docs you write, not extending acceptable ones.
+   Edit an existing doc only when it is wrong or leaves out something a reader
+   would get burned by.
 4. **Edit in place.** Never produce shadow files or running commentary beside the
    code. Do *create* a missing canonical companion file — `doc.go` for a Go package
    without one, `README.md` for a project without one, the language equivalent
-   otherwise. Leave unrelated files alone.
+   otherwise. A Go package comment belongs in `doc.go`: when it sits in another
+   file or in a misnamed `docs.go`, move it there (`git mv` in a checkout), keeping
+   its wording unless the wording is wrong. Moving it is not churn. Leave unrelated
+   files alone.
 5. **Scope to the change.** When documenting after a code change, stay within the
    files that changed and their immediate package or module context (the package's
    `doc.go`, the nearest `README.md`). Sweep the whole repo only when asked for an
@@ -108,9 +127,9 @@ a bundle exists or creation is confirmed.
 7. **Report what changed** in the response: files touched, what was added, and any
    judgment calls made — the docstring style chosen when the project was ambiguous,
    for instance. That belongs in the reply, never spliced into source files. When a
-   pass mixes kinds of change (wrong comments fixed, new docs, `doc.go` files,
-   trailing-to-leading moves, READMEs), split commits by kind so reviewers can
-   approve the low-risk ones quickly; a small single-kind pass is one commit. Any
+   pass mixes kinds of change (wrong comments fixed, new docs, `doc.go` files and
+   moves, trailing-to-leading moves, READMEs), split commits by kind so reviewers
+   can approve the low-risk ones quickly; a small single-kind pass is one commit. Any
    non-documentation change the user asked for (lint config, `go_package`, imports)
    gets its own commit, so it never hides inside a comments diff.
 
@@ -134,15 +153,21 @@ a bundle exists or creation is confirmed.
   fights the code for the same line and loses on every reformat.
 - **Explain why and what for, never what.** `// increment` next to `i++` is noise.
   What the reader cannot recover from the code is the reason it exists and what
-  breaks if it changes.
-- **Document unexported symbols too.** Exported docs serve API consumers; unexported
-  docs serve maintainers, who usually need *more* context, not less — they are the
-  ones who will have to change this code later.
+  breaks if it changes. Beyond that, a good doc carries whichever apply of:
+  trade-offs, pitfalls for callers, invariants, units, relations to other code and
+  libraries (as doc links), workarounds, and blockers or known limits. The
+  checklist is in [references/comments.md](references/comments.md#what-a-good-doc-carries).
+- **Unexported symbols matter as much as exported ones, often more.** Exported
+  docs serve API consumers; unexported docs serve maintainers, human or agent, who
+  need *more* context, not less. They are the ones who will change this code, and
+  an agent has nothing but the code and its comments to go on.
 - **Document errors, panics, and edge cases.** These are exactly what a reader
   cannot infer from a signature.
 - **A runnable example beats prose** wherever one is possible.
-- **Skip the trivia.** Getters, setters, imports, closing braces, and short
-  self-explanatory code need nothing — unless there is a non-obvious side effect.
+- **Skip the trivia inside bodies.** Imports, closing braces, and short
+  self-explanatory lines need no inline comment. Declarations are different: a
+  getter still gets a one-line doc in a full pass, and nothing more unless it has a
+  non-obvious side effect.
 - **README spine, in order:** Title → one-line tagline → About → Installation →
   Usage → License, for a top-level project README. A package README inside a repo
   or monorepo may drop Installation and License, which the root README already
@@ -162,7 +187,9 @@ a bundle exists or creation is confirmed.
 - **Making missing documentation a CI failure** (buf lint `COMMENTS`, revive
   `exported`, eslint `jsdoc/require-jsdoc`) unless the user asked for it. Coverage
   is a review goal, not a merge gate. Asked to enable linting, enable it without the
-  comment-coverage rules and offer them separately.
+  comment-coverage rules and offer them separately. Don't silence the findings it
+  raises with `except` or `ignore` entries either: report them as follow-ups,
+  since suppressing a rule is an API decision, not a documentation one.
 - **Marketing copy, blog posts, or release notes.** Not documentation either.
 - **Speculative docs** for code that does not exist yet.
 - **Writing CHANGELOG entries.** Authors describe their own changes; link to
