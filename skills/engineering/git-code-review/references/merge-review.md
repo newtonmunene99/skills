@@ -90,7 +90,9 @@ style guide" is unactionable and unfalsifiable.
 Two passes, in this order:
 
 1. **Guidelines compliance** — unambiguous violations in the changed code.
-2. **Bugs and correctness** — in **introduced or changed code only**.
+2. **Bugs and correctness** — in **introduced or changed code only**. The one
+   exception: if the change bumps a dependency, untouched code that the bump stops
+   from building is in scope. Confirm it with one build or typecheck.
 
 Apply the signal bar from `SKILL.md`. Merge reviews are high signal only.
 
@@ -108,7 +110,8 @@ author's time and teaches them to discount the next review.
 
 ## Step 5 — Output
 
-See [reporting.md](reporting.md) for the templates and verdicts.
+Read [reporting.md](reporting.md) before writing anything. It defines the template,
+the `file:line` format for each issue, and the allowed verdicts.
 
 ## Step 6 — Post comments (only if asked)
 

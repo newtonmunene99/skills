@@ -17,6 +17,10 @@ What to look for, in rough order of how much a miss costs:
 - **Security** — injection, auth gaps, hardcoded secrets, unsafe deserialization.
 - **Error handling** — errors propagated rather than swallowed.
 - **API and contracts** — breaking changes, backward compatibility.
+- **Dependencies** — version bumps that break transitive consumers, a lockfile out of
+  sync with its manifest, major-version jumps. A build break caused by a bumped
+  dependency is this change's issue even when no source line moved; confirm it with
+  one build or typecheck, as `SKILL.md` describes.
 - **Tests** — new behavior covered; no flaky patterns (sleeps, real clocks, ordering
   assumptions on unordered collections).
 - **Readability and consistency** — naming and patterns matching the surrounding repo.
@@ -86,12 +90,19 @@ Drop any heading with nothing under it. "Positive notes" in particular should na
 something specific or not appear; generic praise reads as filler and devalues the
 rest of the review.
 
+Confirmations that something is correct — "the migration is safe", "the retry logic
+is right" — go under **Positive notes**, never in the numbered findings. A finding is
+something to act on; numbering praise alongside defects inflates the count and makes
+the reader hunt for what actually needs fixing. The merge-review template has no
+Positive notes section; there, leave confirmations out or fold one into the summary.
+
 When reviewing more than one commit, list the commits included in the header so the
 scope is unambiguous.
 
 ## Verdicts
 
-Every review ends with one of:
+Every review ends with exactly one of these. Do not invent others ("Not mergeable
+yet", "Needs work"); the fixed set is what lets the reader act without parsing prose.
 
 - **Approve** — nothing blocking.
 - **Approve with nits** — nothing blocking, some suggestions the author can take or

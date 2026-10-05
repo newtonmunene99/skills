@@ -14,7 +14,7 @@ repository — working tree, commits, ranges, branch-vs-base, or a hosted MR/PR.
 - **Merge review workflow** — resolving the diff, pre-flight stops (empty, draft,
   already reviewed), loading path-scoped project guidelines, validating findings,
   and posting inline comments with committable suggestions
-- **Reporting** — output templates per mode, an 8-point review checklist, and
+- **Reporting** — output templates per mode, a 9-point review checklist, and
   Approve / Approve with nits / Request changes verdicts
 
 The core of the skill is the **signal bar**: merge reviews flag compile failures,
