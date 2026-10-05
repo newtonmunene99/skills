@@ -21,8 +21,8 @@ skill; it's measuring the model. Those are worth rewriting.
 
 | File | Purpose |
 | ---- | ------- |
-| `evals.json` | The 9 eval prompts and their expectations (what the grader checks) |
-| `files/<eval-name>/` | Fixture projects for the evals that work on a repo on disk (5-9) |
+| `evals.json` | The 10 eval prompts and their expectations (what the grader checks) |
+| `files/<eval-name>/` | Fixture projects for the evals that work on a repo on disk (5-10) |
 | `prepare_workspace.py` | Builds the workspace directory layout and `eval_metadata.json` from `evals.json`, and copies each eval's fixture project |
 | `run_benchmark.sh` | Aggregates grading results and opens the review viewer |
 
@@ -35,10 +35,11 @@ skill; it's measuring the model. Those are worth rewriting.
 | 3 | `readme-from-scratch` | Not inventing a FAQ, rendering config as a table, and keeping the unmerged Slack work out of Features and Usage |
 | 4 | `okf-concept-and-index` | Leaving `index.md` frontmatter-free, using bundle-absolute links, and **not fabricating `verified`** |
 | 5 | `okf-ambiguous-scope-ask` | **Asking instead of guessing.** The prompt never says OKF; the bundle under `docs/catalog/` is only visible on disk, so a baseline writes godoc |
-| 6 | `comment-proto-keep-lint-out-of-ci` | Adding buf lint **without** the `COMMENTS` category, leaving `customerId` and the shared `Order` response alone, and proving the descriptor unchanged with `buf build -o` and `cmp` |
+| 6 | `comment-proto-keep-lint-out-of-ci` | Adding buf lint **without** the `COMMENTS` category or `except` entries that hide existing findings, leaving `customerId` and the shared `Order` response alone, and proving the descriptor unchanged with `buf build -o` and `cmp` |
 | 7 | `update-docs-after-change` | **Scope.** Fixing the stale `Allow` docs in `doc.go` and the README, and not sweeping the undocumented `internal/store` |
 | 8 | `audit-skips-generated-and-okf` | Leaving generated and `third_party/` code out of the audit, leading with wrong docs, and **not creating** an OKF bundle that does not exist |
 | 9 | `project-style-guide-wins` | Following `CONTRIBUTING.md`'s NumPy docstring rule over the Google default, and checking only docstrings changed |
+| 10 | `full-pass-doc-go-and-coverage` | **Coverage.** Renaming `docs.go` to `doc.go`, moving a package comment out of a regular file, and documenting every non-test declaration, trivial ones included, while leaving `Test*` functions to a separate offer |
 
 Evals 2, 5 and 7 are scored on restraint; 6 and 9 also check that the reply names a
 mechanical comments-only check rather than asserting one.

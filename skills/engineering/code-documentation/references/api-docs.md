@@ -26,8 +26,9 @@ Languages not listed follow the same principle: use the ecosystem's canonical
 convention and apply the general rules below.
 
 **Go grouped declarations.** A comment on a `const (...)` or `var (...)` block
-documents its members. Give a member its own doc only when it needs more than the
-group says.
+documents its members only when they are one concept, such as the values of an
+`iota` enum. Unrelated members that share a block, a tax rate beside a size limit,
+each get their own doc line.
 
 **TypeScript tags.** In docs you write, omit `{Type}` in `@param` and `@returns`; the
 signature already carries the types, and a second copy drifts from it. This is a rule
@@ -40,11 +41,15 @@ Google Python Style Guide treatment.
 
 ## General rules across languages
 
-**Document unexported and private symbols too.** Exported docs serve API consumers;
-unexported docs serve maintainers. Maintainers usually need *more* context than
-consumers, not less — they are the people who will have to change this code, often
-years later with none of the original context. The "what not to comment" exceptions
-still apply at every visibility level: genuinely self-evident code stays bare.
+**Document unexported and private symbols as carefully as exported ones.** Exported
+docs serve API consumers; unexported docs serve maintainers, human or agent.
+Maintainers usually need *more* context than consumers, not less — they are the ones
+who will have to change this code, often years later with none of the original
+context, and an agent working on it has only the code and its comments. The "what
+not to comment" exceptions still apply at every visibility level, but to inline
+comments: self-evident code inside a body stays bare, while the declaration still
+gets its one-line doc.
+Protobuf enum values are the exception; see [Enum values](#enum-values).
 
 **Lead with one summary sentence in active voice.** Add detail only when it earns
 its place. In Go this sentence must begin with the symbol name (`// Parse reads…`)

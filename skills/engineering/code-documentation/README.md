@@ -10,7 +10,8 @@ knowledge documents — without touching behavior.
   *what*, plain language, and an explicit list of what not to comment
 - **API & symbol docs** — the canonical convention per language (godoc, JSDoc/TSDoc,
   Python docstrings, dartdoc, rustdoc, Javadoc/KDoc), documenting errors and edge
-  cases, and why unexported symbols deserve docs too
+  cases, full declaration coverage in a docs pass, and why unexported symbols
+  matter as much as exported ones to the humans and agents maintaining them
 - **Protocol Buffers** — comments on services, RPCs, messages, fields, enums and
   enum values, which propagate into generated code in every target language
 - **READMEs** — the required spine (Title → tagline → About → Installation → Usage →

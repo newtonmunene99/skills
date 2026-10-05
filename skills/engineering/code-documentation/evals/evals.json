@@ -35,17 +35,18 @@
     {
       "id": 2,
       "name": "respect-existing-docs",
-      "prompt": "Doing a docs pass on `src/util/time.ts` before we cut the release. Have a look and fill in whatever's missing.\n\n```ts\nexport interface Range {\n  start: number;\n  end: number;\n}\n\n/**\n * Converts a duration in milliseconds to a human-readable string.\n *\n * Rounds to the nearest whole unit, so 1500ms renders as \"2s\" rather than\n * \"1.5s\". Callers needing precision should format the raw value themselves.\n *\n * @param ms - Duration in milliseconds. Negative values are treated as 0.\n * @returns A string like \"2s\", \"5m\", or \"3h\".\n */\nexport function formatDuration(ms: number): string {\n  const s = Math.max(0, Math.round(ms / 1000));\n  if (s < 60) return `${s}s`;\n  if (s < 3600) return `${Math.round(s / 60)}m`;\n  return `${Math.round(s / 3600)}h`;\n}\n\n/**\n * Parses an RFC 3339 timestamp into a Date.\n *\n * @param {string} input - An RFC 3339 string, with or without a timezone offset.\n * @returns {Date} The parsed Date.\n * @throws {RangeError} If the string is not valid RFC 3339.\n */\nexport function parseTimestamp(input: string): Date {\n  const d = new Date(input);\n  if (Number.isNaN(d.getTime())) {\n    throw new RangeError(`not an RFC 3339 timestamp: ${input}`);\n  }\n  return d;\n}\n\nexport function nextRetryDelay(attempt: number, baseMs: number, capMs: number): number {\n  const exp = Math.min(capMs, baseMs * 2 ** attempt);\n  return Math.floor(Math.random() * exp);\n}\n\n/**\n * Returns true when the two ranges overlap at any point.\n *\n * Ranges are treated as half-open: [start, end). Two ranges that merely touch\n * - where one ends exactly where the other starts - do not overlap\n */\nexport function rangesOverlap(a: Range, b: Range): boolean {\n  return a.start < b.end && b.start < a.end;\n}\n```",
-      "expected_output": "A TSDoc block added to nextRetryDelay only - documenting the three parameters with units, the return value, and the full-jitter randomisation. The three existing doc comments are left byte-identical, including parseTimestamp's {Type} annotations and rangesOverlap's missing final period, which are style differences rather than defects.",
+      "prompt": "Doing a docs pass on `src/util/time.ts` before we cut the release. Have a look and fill in whatever's missing.\n\n```ts\nexport interface Range {\n  start: number;\n  end: number;\n}\n\n/**\n * Converts a duration in milliseconds to a human-readable string.\n *\n * Rounds to the nearest whole unit, so 1500ms renders as \"2s\" rather than\n * \"1.5s\". Callers needing precision should format the raw value themselves.\n *\n * @param ms - Duration in milliseconds. Negative values are treated as 0.\n * @returns A string like \"2s\", \"5m\", or \"3h\".\n */\nexport function formatDuration(ms: number): string {\n  const s = Math.max(0, Math.round(ms / 1000));\n  if (s < 60) return `${s}s`;\n  if (s < 3600) return `${Math.round(s / 60)}m`;\n  return `${Math.round(s / 3600)}h`;\n}\n\n/**\n * Parses an RFC 3339 timestamp into a Date.\n *\n * Parsing is delegated to the Date constructor, which is more lenient than\n * RFC 3339, so this does not validate the format: other strings Date accepts,\n * such as \"2024\", parse too.\n *\n * @param {string} input - An RFC 3339 string, with or without a timezone offset.\n * @returns {Date} The parsed Date.\n * @throws {RangeError} If the Date constructor cannot parse the string at all.\n */\nexport function parseTimestamp(input: string): Date {\n  const d = new Date(input);\n  if (Number.isNaN(d.getTime())) {\n    throw new RangeError(`not an RFC 3339 timestamp: ${input}`);\n  }\n  return d;\n}\n\nexport function nextRetryDelay(attempt: number, baseMs: number, capMs: number): number {\n  const exp = Math.min(capMs, baseMs * 2 ** attempt);\n  return Math.floor(Math.random() * exp);\n}\n\n/**\n * Returns true when the two ranges overlap at any point.\n *\n * Ranges are treated as half-open: [start, end). Two ranges that merely touch,\n * where one ends exactly where the other starts, do not overlap\n */\nexport function rangesOverlap(a: Range, b: Range): boolean {\n  return a.start < b.end && b.start < a.end;\n}\n```",
+      "expected_output": "A TSDoc block added to nextRetryDelay - documenting the three parameters with units, the return value, and the full-jitter randomisation. Range and its two fields get short docs too, since they are undocumented declarations. The three existing doc comments are left byte-identical, including parseTimestamp's {Type} annotations and rangesOverlap's missing final period, which are style differences rather than defects.",
       "files": [],
       "expectations": [
         "nextRetryDelay gains a TSDoc block documenting all three parameters (attempt, baseMs, capMs) with their units in milliseconds, plus the return value.",
         "That doc explains the full-jitter behaviour: the return is a random value between 0 and the computed exponential backoff, not the backoff itself. A reader cannot infer this from the name and it is the whole reason the function needs a doc.",
-        "The existing doc comment on parseTimestamp is left byte-identical, including its `{string}` and `{Date}` type annotations. Stripping them would match the usual TSDoc preference, but they are accurate, and rewriting acceptable docs to a style preference is churn.",
+        "Range and its start and end fields get short doc comments (a line each is enough); an undocumented declaration is not skipped as self-evident in a fill-in-what's-missing pass.",
+        "The existing doc comment on parseTimestamp is left byte-identical, including its `{string}` and `{Date}` type annotations and its note that Date's leniency means the format is not validated. Stripping them would match the usual TSDoc preference, but they are accurate, and rewriting acceptable docs to a style preference is churn.",
         "The existing doc comment on rangesOverlap is left byte-identical, including its last sentence that ends without a period. A missing period is not a defect worth a diff line.",
         "The existing doc comment on formatDuration is left completely unchanged; the sentence about 1500ms rendering as '2s' survives verbatim.",
         "No function body is modified and no code is changed anywhere in the file.",
-        "The reply states which symbol was documented and why the others were left alone. It may note the mixed {Type} usage as an optional follow-up for a house style, but does not change it in this pass."
+        "The reply states which symbols were documented and why the existing docs were left alone. It may note the mixed {Type} usage as an optional follow-up for a house style, but does not change it in this pass."
       ],
       "signals": {
         "present": [
@@ -59,7 +60,8 @@
           "@param attempt",
           "@param baseMs",
           "@param capMs",
-          "jitter|random"
+          "jitter|random",
+          "more lenient than\\n \\* RFC 3339"
         ],
         "absent": []
       }
@@ -176,7 +178,7 @@
       "id": 6,
       "name": "comment-proto-keep-lint-out-of-ci",
       "prompt": "the frontend folks keep asking what the order statuses mean and what unit total_micros is in. can you comment proto/acme/orders/v1/orders.proto properly? also we never set up any lint rules in buf.yaml, add those while you're in there",
-      "expected_output": "Leading comments on the package, service, every RPC, message and field of orders.proto, with total_micros' unit and the ORDER_STATUS_UNSPECIFIED meaning stated and self-evident enum values not restated. buf.yaml gains a lint section without the COMMENTS category, which is offered separately. No field, RPC or message is renamed, renumbered or reshaped; the lint findings about customerId and the shared Order response are reported, not fixed. The descriptor is shown unchanged with buf build --exclude-source-info and cmp.",
+      "expected_output": "Leading comments on the package, service, every RPC, message and field of orders.proto, with total_micros' unit and the ORDER_STATUS_UNSPECIFIED meaning stated and self-evident enum values not restated. buf.yaml gains a lint section without the COMMENTS category, which is offered separately, and without except or ignore entries that would hide the proto's existing findings. No field, RPC or message is renamed, renumbered or reshaped; the lint findings about customerId and the shared Order response are reported, not fixed. The descriptor is shown unchanged with buf build --exclude-source-info and cmp.",
       "files": [
         "evals/files/comment-proto-keep-lint-out-of-ci/buf.yaml",
         "evals/files/comment-proto-keep-lint-out-of-ci/proto/acme/orders/v1/orders.proto"
@@ -190,7 +192,8 @@
         "buf.yaml gains a lint section (for example `use: [STANDARD]`) that does not include the COMMENTS category, and the reply offers COMMENTS as a separate opt-in rather than turning missing comments into a CI failure nobody asked for.",
         "No field, RPC, message or enum is renamed, renumbered, added or reshaped: customerId stays customerId and GetOrder/CancelOrder still return Order. The lint findings these trigger are reported in the reply as follow-ups, not fixed in a documentation pass.",
         "The reply reports a mechanical check that the contract is unchanged, such as building the image with `buf build --exclude-source-info -o` before and after and comparing the files, rather than asserting it from reading the diff.",
-        "The lint configuration is reported as a separate change from the comments (separate commit or clearly separated in the reply), so the reviewer can approve the comments without reviewing a CI change."
+        "The lint configuration is reported as a separate change from the comments (separate commit or clearly separated in the reply), so the reviewer can approve the comments without reviewing a CI change.",
+        "buf.yaml does not silence the findings the new lint rules raise: no `except` or `ignore` entries for rules the proto currently violates (such as RPC_REQUEST_RESPONSE_UNIQUE or RPC_RESPONSE_STANDARD_NAME). Those findings are reported as follow-ups, because suppressing a rule is an API decision outside a documentation pass."
       ],
       "signals": {
         "present": [
@@ -203,7 +206,8 @@
         "absent": [
           "(^|\\n)\\+\\s*-\\s*COMMENTS\\b",
           "\\+\\s*string customer_id = 2",
-          "GetOrderResponse \\{"
+          "GetOrderResponse \\{",
+          "(^|\\n)\\+\\s*(except|ignore):"
         ]
       }
     },
@@ -243,7 +247,7 @@
       "id": 8,
       "name": "audit-skips-generated-and-okf",
       "prompt": "can you do a docs audit on this repo? code docs, the README, and our OKF knowledge docs too. just tell me what's missing or wrong for now, don't change anything yet",
-      "expected_output": "A read-only findings report that leads with the actively wrong docs (Add's comment says it returns an error but it panics; the README calls money.Add as if it returned an error), then real gaps (Split undocumented, README missing its tagline, About and Installation). The generated api/orderspb/orders.pb.go and the copied third_party/semver are excluded from the inventory and the reply says so. There is no OKF bundle: the audit says so and at most asks whether to create one, and creates nothing.",
+      "expected_output": "A read-only findings report that leads with the actively wrong docs (Add's comment says it returns an error but it panics; the README calls money.Add as if it returned an error), then real gaps (Split undocumented, README missing its About and Installation sections). The generated api/orderspb/orders.pb.go and the copied third_party/semver are excluded from the inventory and the reply says so. There is no OKF bundle: the audit says so and at most asks whether to create one, and creates nothing.",
       "files": [
         "evals/files/audit-skips-generated-and-okf/README.md",
         "evals/files/audit-skips-generated-and-okf/api/orderspb/orders.pb.go",
@@ -257,9 +261,9 @@
         "Flags Split as undocumented and names what its doc needs: how the remainder is distributed (the first a.Minor % n parts get one extra minor unit) and the behaviour for n <= 0.",
         "Excludes api/orderspb/orders.pb.go (it carries a 'Code generated ... DO NOT EDIT' header) and third_party/semver from the findings, and says they were excluded and why, instead of listing their missing docs.",
         "States that the repo has no OKF bundle, rather than reporting OKF findings against nothing, and does not create or draft one; at most it asks one question about whether and at what level to start one.",
-        "Lists the README's missing spine sections (tagline, About, Installation) as findings without proposing padded sections such as FAQ or Roadmap.",
+        "Lists the README's missing spine sections (About, Installation) as findings without proposing padded sections such as FAQ or Roadmap. The README already has a tagline, so it is not flagged as missing.",
         "Leaves every file unmodified, as the user asked.",
-        "Does not flag the acceptable existing docs (the package comment, Amount, String) as needing rewrites."
+        "Does not flag the acceptable existing docs (the package comment, Amount, String) as needing rewrites. Noting that the package comment belongs in a doc.go is fine: that is a move, not a rewrite."
       ],
       "signals": {
         "present": [
@@ -306,6 +310,44 @@
         "absent": [
           "Args:",
           "amount : Decimal"
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "name": "full-pass-doc-go-and-coverage",
+      "prompt": "other teams are going to start importing this module next sprint. can you do a full docs pass on it? the whole thing, not just whatever changed recently",
+      "expected_output": "Every package comment ends up in a doc.go: docs.go is renamed to doc.go with its wording unchanged, and pricing's package comment moves out of pricing.go into a new pricing/doc.go. Every non-test declaration gets a doc comment, trivial ones included (Item's fields, Available, memStore and its Get/Reserve, the Store interface methods, TaxBasisPoints, maxLines), with the real content where it matters: reserve's rejection rule, Total's 500-line truncation and tax rounding. NewStore's existing doc is left byte-identical. TestTotal and TestTotalEmpty are not commented; the reply reports them and offers a separate pass. No code changes, with a comments-only check reported.",
+      "files": [
+        "evals/files/full-pass-doc-go-and-coverage/docs.go",
+        "evals/files/full-pass-doc-go-and-coverage/go.mod",
+        "evals/files/full-pass-doc-go-and-coverage/inventory.go",
+        "evals/files/full-pass-doc-go-and-coverage/pricing/pricing.go",
+        "evals/files/full-pass-doc-go-and-coverage/pricing/pricing_test.go"
+      ],
+      "expectations": [
+        "docs.go is renamed to doc.go (not copied), and its package comment wording is unchanged.",
+        "pricing's package comment is moved into a new pricing/doc.go and removed from pricing.go, so the package has exactly one package comment.",
+        "Every non-test declaration has a doc comment, including the trivial ones: ErrInsufficient, Item and its fields, Item.Available, Store and its Get and Reserve methods, memStore, memStore.Get, memStore.Reserve, reserve, TaxBasisPoints, maxLines and Total. None is skipped as self-evident. TaxBasisPoints and maxLines share a const block but are unrelated, so each gets its own line rather than one block comment.",
+        "Trivial declarations get short docs with no padding: a line beyond the first is acceptable only when it states a pitfall, contract or invariant the reader cannot see (for example Available going negative on a hand-built Item), never to restate what the code does.",
+        "The unexported reserve is documented with its real contract: it returns ErrInsufficient when n <= 0 or fewer than n units are available, and it states its locking precondition (the caller serialises access to items, for example by holding the store's lock).",
+        "Total's doc states that inputs beyond 500 lines are ignored and that tax is added at TaxBasisPoints (16%) with integer division truncating the cents.",
+        "NewStore's existing doc comment is left byte-identical.",
+        "TestTotal and TestTotalEmpty are left uncommented; the reply says two test functions lack docs and offers them as a separate pass rather than silently skipping or silently doing them.",
+        "No Go code is changed, and the reply reports a mechanical comments-only check (a filtered git diff, or go build/vet/test) rather than only asserting it."
+      ],
+      "signals": {
+        "present": [
+          "doc\\.go",
+          "\\+// Available ",
+          "\\+// Get ",
+          "\\+// reserve ",
+          "\\+// TaxBasisPoints |\\+\\t// TaxBasisPoints ",
+          "500"
+        ],
+        "absent": [
+          "(^|\\n)\\+// Test",
+          "(^|\\n)-// NewStore "
         ]
       }
     }
