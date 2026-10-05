@@ -2153,7 +2153,7 @@ func (w *Worker) Run(ctx context.Context) error {
     var wg sync.WaitGroup
     // ...
     for item := range w.q {
-        // process returns at latest when the context is cancelled.
+        // process returns at latest when the context is canceled.
         wg.Add(1)
         go func() {
             defer wg.Done()

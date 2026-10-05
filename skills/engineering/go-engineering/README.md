@@ -14,9 +14,9 @@ An [Agent Skill](https://skills.sh/) for writing performant, idiomatic, and read
 
 ### Style Guide (Google Go Style Guide)
 
-- **Style & Idioms** — Naming, formatting, simplicity, maintainability, code readability, and Google Go Style Guide conventions
+- **Style & Idioms** — Naming, errors, interfaces, tests, contexts, goroutine lifetimes, formatting, simplicity, maintainability, code readability, and Google Go Style Guide conventions
 
-The skill is measurement-first: it steers the agent to establish baselines and identify bottlenecks before applying patterns. All guidance is self-contained in the skill; [goperf.dev](https://goperf.dev) has extended articles and examples.
+The skill loads for everyday Go work — writing, testing and reviewing code — and maps each task to the right style-guide section. For performance work it is measurement-first: it steers the agent to establish baselines and identify bottlenecks before applying patterns. All guidance is self-contained in the skill; [goperf.dev](https://goperf.dev) has extended articles and examples.
 
 ## Install
 
@@ -35,7 +35,7 @@ Supported agents include **Cursor**, **Codex**, **Claude Code**, **OpenCode**, *
 
 ## Skill structure
 
-- **SKILL.md** — When to use the skill, workflow (baseline → bottleneck → patterns), and quick cues
+- **SKILL.md** — When to use the skill, workflow (a task → section map for writing and reviewing code; baseline → bottleneck → patterns for optimizing), and quick cues
 - **references/performance/common-patterns.md** — Memory, concurrency, I/O, compiler patterns
 - **references/performance/networking.md** — HTTP, Transport, scaling, resilience, TLS/DNS, protocols
 - **references/styleguide/** — Google Go Style Guide files (guide.md, best-practices.md, decisions.md, index.md)
