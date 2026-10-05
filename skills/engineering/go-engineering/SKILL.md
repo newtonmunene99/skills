@@ -1,12 +1,15 @@
 ---
 name: go-engineering
 description: >-
-  Best practices for writing performant, idiomatic, and readable Go code.
-  Covers performance optimization (memory, allocations, GC, networking,
-  concurrency) from goperf.dev and code style (naming, formatting,
-  readability, simplicity) from the Google Go Style Guide. Use when
-  writing, reviewing, or optimizing Go code, or when asking about Go
-  naming conventions, performance patterns, style, or readability.
+  Use whenever writing, editing, testing or reviewing Go code — features,
+  services, tests, error handling, interfaces, contexts, concurrency — not
+  only when optimizing. Best practices for idiomatic, readable and
+  performant Go: code style (naming, errors, interfaces, tests, contexts,
+  goroutine lifetimes, readability) from the Google Go Style Guide, and
+  performance optimization (memory, allocations, GC, networking,
+  concurrency) from goperf.dev. Also use when asking about Go naming
+  conventions, error wrapping, test doubles, performance patterns, style,
+  or readability.
 disable-model-invocation: false
 compatibility: >-
   Assumes a Go toolchain for the measurement workflow — go test -bench, pprof,
@@ -18,9 +21,28 @@ compatibility: >-
 
 ## Overview
 
-Apply measurement-driven performance patterns from the [Go Optimization Guide](https://goperf.dev) and idiomatic style and readability principles from the [Google Go Style Guide](https://google.github.io/styleguide/go). Measure first (benchmarks, pprof, escape analysis); then apply targeted patterns. Focus on production workloads: backend services, pipelines, and systems where latency, throughput, and long-term maintainability matter.
+Apply measurement-driven performance patterns from the [Go Optimization Guide](https://goperf.dev) and idiomatic style and readability principles from the [Google Go Style Guide](https://google.github.io/styleguide/go). For everyday code, follow the style guide's idioms for errors, interfaces, tests, contexts and concurrency. For performance work, measure first (benchmarks, pprof, escape analysis); then apply targeted patterns. Focus on production workloads: backend services, pipelines, and systems where latency, throughput, and long-term maintainability matter.
 
 ## Workflow
+
+### Writing or reviewing code
+
+1. **Find the section for the task** — Use the map below to jump to the matching section of [references/styleguide/best-practices.md](references/styleguide/best-practices.md) (idioms) or [references/styleguide/decisions.md](references/styleguide/decisions.md) (rules and rationale). Grep for the heading rather than reading the whole file.
+2. **Follow the project's existing conventions** where they are consistent; the style guide settles what the codebase leaves open.
+3. **Run the project's linter and tests before committing** — e.g. `golangci-lint run` and `go test ./...`.
+
+| Task | Where to look |
+| --- | --- |
+| Interfaces and seams — consumer-owned, avoiding unnecessary ones | best-practices.md → *Interfaces* (*Avoid unnecessary interfaces*, *Interface ownership and visibility*, *Designing effective interfaces*); decisions.md → *Interfaces* |
+| Errors — wrapping with `%w`, sentinel vs typed, error structure | best-practices.md → *Error handling* (*Error structure*, *Adding information to errors*, *Placement of %w in errors*, *Logging errors*); decisions.md → *Errors* |
+| Tests and test doubles — `t.Error` vs `t.Fatal`, table-driven | best-practices.md → *Tests* (*`t.Error` vs. `t.Fatal`*, *Error handling in test helpers*, *Don't call `t.Fatal` from separate goroutines*) and *Test double and helper packages*; decisions.md → *Table-driven tests*, *Subtests*, *Test helpers* |
+| Contexts and deadlines | decisions.md → *Contexts*; best-practices.md → *Documentation* → *Contexts* |
+| Naming | best-practices.md → *Naming* (*Function and method names*, *Util packages*); decisions.md → *Naming* |
+| Concurrency and goroutine lifetimes | decisions.md → *Goroutine lifetimes*; best-practices.md → *Documentation* → *Concurrency*, *Channel direction* |
+| Options, constructors and argument lists | best-practices.md → *Function argument lists* (*Option structure*, *Variadic options*) |
+| Package-level state | best-practices.md → *Global state* |
+
+### Optimizing
 
 1. **Establish a baseline** — Add or run benchmarks; profile under load with pprof (CPU, memory). Optimizing without numbers often targets the wrong place; a baseline makes the impact of changes observable and avoids wasted effort.
 2. **Identify the bottleneck** — Allocations/GC, I/O, scheduler, or networking. Use `go build -gcflags="-m" ./pkg` to see what escapes to the heap.
@@ -42,6 +64,17 @@ Apply measurement-driven performance patterns from the [Go Optimization Guide](h
 - **SOLID and the GoF patterns (Builder, Strategy, Observer, Visitor, Singleton and the rest) in idiomatic Go** → Use the `design-patterns` skill if it is installed; its Go reference covers functional options, `iter.Seq`, consumer-side interfaces and which patterns vanish in Go.
 
 ## Quick Cues
+
+### Writing code
+
+- **Interfaces**: Define an interface in the package that consumes it, holding only the methods that consumer calls; producers return concrete types. Don't add an interface until a second implementation or a test double needs it.
+- **Errors**: Wrap with `fmt.Errorf("...: %w", err)` when callers may inspect the cause, and put `%w` at the end. When callers branch on a condition, expose a sentinel (`var ErrNotFound = errors.New(...)`) or a typed error and match with `errors.Is` / `errors.As`, never by string.
+- **Tests**: Use `t.Error` to report a failure and keep checking the rest; use `t.Fatal` only when the test cannot meaningfully continue (setup failed, a nil result would panic). Never call `t.Fatal` from a goroutine other than the test's own.
+- **Contexts**: Take `ctx context.Context` as the first parameter and pass it through to every call that does I/O or may block; don't store it in a struct field.
+- **Spelling and lint**: Go and the `misspell` linter use US spelling — canceled, canceling, marshaling — in identifiers, comments and error strings. Run the project's linter (e.g. `golangci-lint run`) before committing.
+- **Atomic file writes**: Create the temp file with `os.CreateTemp` in the target's own directory (so the rename stays on one filesystem), write and `Close` it, then `os.Rename` it over the target. On any error, remove the temp file.
+
+### Performance and style
 
 - **Connection reuse (HTTP)**: Drain response body before closing (e.g. `io.Copy(io.Discard, resp.Body)` then `resp.Body.Close()`); otherwise the client will not reuse connections.
 - **Escape analysis**: Run `go build -gcflags="-m" ./path/to/pkg` to see which values move to the heap; reduce escapes on hot paths to lower GC pressure.

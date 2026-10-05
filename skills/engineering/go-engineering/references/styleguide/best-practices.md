@@ -1458,6 +1458,10 @@ See also:
 
 #### Contexts
 
+**Note (skill maintainer):** The upstream prose spells "cancelled"; the Go
+comments in the samples below use the US "canceled" that Go itself and the
+`misspell` linter expect. Use US spelling in code and comments.
+
 It is implied that the cancellation of a context argument interrupts the
 function it is provided to. If the function can return an error, conventionally
 it is `ctx.Err()`.
@@ -1468,7 +1472,7 @@ This fact does not need to be restated:
 // Bad:
 // Run executes the worker's run loop.
 //
-// The method will process work until the context is cancelled and accordingly
+// The method will process work until the context is canceled and accordingly
 // returns an error.
 func (Worker) Run(ctx context.Context) error
 ```
@@ -1491,7 +1495,7 @@ documented if any of the following are true.
     // Good:
     // Run executes the worker's run loop.
     //
-    // If the context is cancelled, Run returns a nil error.
+    // If the context is canceled, Run returns a nil error.
     func (Worker) Run(ctx context.Context) error
     ```
 
@@ -1501,7 +1505,7 @@ documented if any of the following are true.
     // Good:
     // Run executes the worker's run loop.
     //
-    // Run processes work until the context is cancelled or Stop is called.
+    // Run processes work until the context is canceled or Stop is called.
     // Context cancellation is handled asynchronously internally: run may return
     // before all work has stopped. The Stop method is synchronous and waits
     // until all operations from the run loop finish. Use Stop for graceful
