@@ -58,6 +58,30 @@ the project or API Linter enforces them.
   update, error if change requested.
 - **UNORDERED_LIST:** Repeated field order not guaranteed.
 
+## Field presence (AIP-149)
+
+- Use proto3 `optional` only on primitive fields where unset and the zero value
+  mean different things: `optional int32 max_retries` when `0` is a valid
+  setting, `optional bool` when "not set" must fall back to a server default.
+- Do **not** use it for IDs, names or strings where empty already means "not
+  provided" — `{resource}_id` on Create is a plain `string`.
+- Message-typed fields already have presence; never mark them `optional`.
+- Changing a field to or from `optional` changes generated code in some
+  languages; treat it as breaking on a released field.
+
+## Adding to an existing contract
+
+- **Field numbers:** take the next unused number. Read the whole message,
+  including `reserved` ranges and any high-numbered block (some repos park
+  `etag`, `create_time`, `update_time` at 97–99). Never reuse a removed number;
+  `reserve` it instead.
+- **Compatibility:** adding a field, message, enum value or RPC is
+  non-breaking. Renaming, retyping, renumbering, moving a field into or out of
+  a `oneof`, or changing `optional` is breaking. State which in the summary.
+- **Conventions:** new code follows AIP even when the surrounding file does
+  not. List each deviation from the file's existing convention in the reply and
+  offer to match the repo instead; the user decides.
+
 ## Standard and special fields (AIP-148)
 
 ### Resource names and IDs
