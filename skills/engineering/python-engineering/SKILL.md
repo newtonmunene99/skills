@@ -1,14 +1,17 @@
 ---
 name: python-engineering
 description: >-
-  Best practices for writing idiomatic, well-typed, and maintainable modern
-  Python (3.11+). Covers the Google Python Style Guide (naming, imports,
-  docstrings, type annotations, formatting) and modern patterns for typing,
-  data modeling (dataclasses, pydantic v2, TypedDict), asyncio, exceptions,
-  logging, pytest, and tooling with ruff and uv. Use when writing or
-  reviewing Python code, designing modules, choosing between dataclass and
-  pydantic, adding type hints, structuring async code, writing tests, or
-  configuring a Python project.
+  Use whenever writing, editing, debugging, testing or reviewing Python
+  code — scripts, services, CLIs, FastAPI/Django handlers, pytest suites,
+  pyproject and packaging setup — not only when style is asked about. Best
+  practices for idiomatic, well-typed, maintainable modern Python (3.11+):
+  the Google Python Style Guide (naming, imports, docstrings, type
+  annotations, formatting) plus modern patterns for typing, data modeling
+  (dataclasses, pydantic v2, TypedDict), asyncio, exceptions, logging,
+  pytest, and tooling with ruff and uv. Also use when choosing between
+  dataclass and pydantic, adding type hints, writing a typed decorator,
+  structuring async code, setting up logging, or scaffolding a Python
+  project.
 disable-model-invocation: false
 compatibility: >-
   Targets Python 3.11+. Assumes ruff, uv and pytest; recommendations adjust if
@@ -27,8 +30,8 @@ Apply the [Google Python Style Guide](https://google.github.io/styleguide/pyguid
 - **Mind the feature floor above 3.11.** `override` is 3.12+, PEP 695 generics (`def f[T]`, `type X = ...`) are 3.12+, `TypeIs` is 3.13+. Below those versions import from `typing_extensions` — never from `typing`.
 - **Type public APIs.** Annotate module-level functions, class methods, and public dataclasses/protocols. Internal helpers can be inferred.
 - **Prefer `collections.abc` in signatures.** Accept `Sequence`/`Mapping`/`Iterable`; return concrete `list`/`dict`/`tuple` when identity matters.
-- **`ruff` for lint + format, `uv` for env + deps, `pytest` for tests.** No `black` + `isort` + `flake8` + `pylint` stack in new projects.
-- **Docstrings: Google style.** `Args:`, `Returns:`/`Yields:`, `Raises:` with hanging indent.
+- **`ruff` for lint + format, `uv` for env + deps, `pytest` for tests.** No `black` + `isort` + `flake8` + `pylint` stack in new projects: ruff covers the same ground with one config in `pyproject.toml` and no formatter/import-sorter ordering fights.
+- **Docstrings: Google style.** `Args:`, `Returns:`/`Yields:`, `Raises:` with hanging indent. It is the pyguide's format, ruff's `pydocstyle` checks it with `convention = "google"`, and Sphinx napoleon and mkdocstrings render it unchanged.
 - **Don't reach for power features** (metaclasses, `__init_subclass__`, dynamic imports, monkey-patching) until a simpler design has been tried and rejected.
 
 ## Workflow
@@ -41,7 +44,7 @@ Apply the [Google Python Style Guide](https://google.github.io/styleguide/pyguid
 
 ### Google Python Style Guide (pyguide)
 
-- **Language rules — imports, exceptions, mutable defaults, comprehensions, decorators, threading, power features** → Read [references/pyguide/language-rules.md](references/pyguide/language-rules.md)
+- **Language rules — imports, exceptions, mutable defaults, comprehensions, decorators, threading, choosing threads vs processes vs asyncio, power features** → Read [references/pyguide/language-rules.md](references/pyguide/language-rules.md)
 - **Style rules — line length, indentation, whitespace, strings, statements, `main`, function length** → Read [references/pyguide/style-rules.md](references/pyguide/style-rules.md)
 - **Docstrings — module, function, class, generator, overridden method** → Read [references/pyguide/docstrings.md](references/pyguide/docstrings.md)
 - **Naming — modules, classes, functions, constants, protected/private, `TypeVar` conventions** → Read [references/pyguide/naming.md](references/pyguide/naming.md)
@@ -57,16 +60,18 @@ Apply the [Google Python Style Guide](https://google.github.io/styleguide/pyguid
 - **Testing — pytest fixtures, parametrize, mocking, coverage, async tests** → Read [references/modern/testing.md](references/modern/testing.md)
 - **Tooling & packaging — `pyproject.toml`, `uv`, `ruff`, `mypy`/`pyright`, src layout, entry points** → Read [references/modern/tooling.md](references/modern/tooling.md)
 
-### Design patterns
+### Neighbours
 
+- **Reviewing a diff, branch, commit or PR as a whole** → `git-code-review` leads the review and owns the report, if it is installed; apply this skill's Quick Cues and Anti-patterns as its Python checklist. A file or snippet pasted for review stays here.
+- **Comment and docstring wording, README content, doc coverage audits** → Use the `code-documentation` skill if it is installed. Google docstring section mechanics (`Args:`, `Returns:`, `Raises:`, generators, overridden methods) stay in [docstrings.md](references/pyguide/docstrings.md).
 - **SOLID and the GoF patterns (Strategy, Observer, Singleton, Visitor and the rest) in idiomatic Python** → Use the `design-patterns` skill if it is installed; its Python reference covers dicts of callables, `Protocol`, generators, modules as singletons and which patterns vanish in Python.
 
 ## Quick Cues
 
 - **Types on public APIs:** Use `list[int]`, `dict[str, int]`, `X | None`. Prefer `Sequence`/`Mapping`/`Iterable` from `collections.abc` in parameter positions.
-- **No mutable defaults:** `def f(x: list[int] | None = None): x = x or []`. Empty tuples (`()`) are fine as immutable defaults.
+- **No mutable defaults:** default to `None`, then `if x is None: x = []` in the body. Not `x = x or []`: that swaps a caller's empty list for a new one, so in-place appends never reach the caller. Empty tuples (`()`) are fine as immutable defaults.
 - **`is None`, not `== None`:** Use `if x is None:` / `if x is not None:`. Use implicit falsy (`if not seq:`) for containers but never for integers where `0` and `None` differ meaningfully.
-- **Never catch `Exception` bare.** Catch the narrowest exception you can act on; re-raise otherwise. Use `except SomeError as e: raise MyError(...) from e`. (`except Exception:` does *not* catch `asyncio.CancelledError` — that's a `BaseException` — but it does hide every programming error.)
+- **Catch `Exception` only at a task/thread boundary that logs and re-raises; elsewhere catch the narrowest type** you can act on, and let the rest propagate. Use `except SomeError as e: raise MyError(...) from e`. (`except Exception:` does *not* catch `asyncio.CancelledError` — that's a `BaseException` — but it does hide every programming error.)
 - **`with` for all closeable resources.** Files, sockets, DB connections, `asyncio.TaskGroup`, `contextlib.closing(...)`.
 - **Google docstrings:** One-line summary ending in `.`, blank line, then details. `Args:` / `Returns:` / `Raises:` with hanging indent.
 - **Dataclasses:** `@dataclass(frozen=True, slots=True)` for value objects. Reach for `pydantic.BaseModel` only at IO/config/API boundaries where validation and JSON schema matter.

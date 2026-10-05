@@ -1,0 +1,19 @@
+[
+  {"query": "the /orders POST handler in app/routes/orders.py (fastapi) 500s whenever line_items is empty, can you fix it? traceback says KeyError: 'sku' somewhere in build_order", "should_trigger": true},
+  {"query": "write me a quick script that reads exports/stock_2026-09.csv, sums qty per warehouse column and prints the top 10 skus. nothing fancy, its a one-off", "should_trigger": true},
+  {"query": "our django management command import_suppliers takes 40 min and blocks on each requests.get. how should I restructure it so the HTTP calls run concurrently without rewriting the whole app as async?", "should_trigger": true},
+  {"query": "mypy --strict is complaining 'Returning Any from function declared to return \"list[Shipment]\"' in carriers/dhl.py around the json parsing. what's the right way to type that without a cast everywhere", "should_trigger": true},
+  {"query": "Setting up a new repo for an internal library (billing-rules). We're on 3.12. What should pyproject look like and do we still need setup.cfg / requirements.txt?", "should_trigger": true},
+  {"query": "can you add tests for utils/money.py? there are none. rounding and currency conversion are the scary bits", "should_trigger": true},
+  {"query": "review this function for me, it's going into our shared utils:\n\ndef merge(a, b={}):\n    for k in b: a[k] = b[k]\n    return a", "should_trigger": true},
+  {"query": "is it worth switching our config loading from dataclasses to pydantic-settings? we read ~30 env vars and half of them are optional ints", "should_trigger": true},
+  {"query": "refactor ingest/pipeline.py so the retry/backoff logic isn't copy pasted in four places. python 3.11", "should_trigger": true},
+  {"query": "review my branch feature/rate-limits against main before I open the PR, it's about 14 commits touching the gateway and the billing worker", "should_trigger": false},
+  {"query": "go through src/ledger/ and tell me which public functions and classes are missing docstrings, I want a coverage list before the release", "should_trigger": false},
+  {"query": "ruff's C901 is flagging reconcile() at complexity 23. is that actually a problem or should I just bump max-complexity? what threshold do people use", "should_trigger": false},
+  {"query": "we keep adding elif branches for each carrier in dispatch.py. which design pattern fits here, strategy or a registry or something else?", "should_trigger": false},
+  {"query": "rewrite the README for our python sdk — the install section is outdated and there's no quickstart", "should_trigger": false},
+  {"query": "the payments service handler in internal/payments/handler.go leaks goroutines when the client disconnects. can you find it", "should_trigger": false},
+  {"query": "design the proto for a ListShipments RPC with pagination and filtering, our python and go services will both call it", "should_trigger": false},
+  {"query": "check this flask app for security issues before we expose it publicly, especially the file upload route and the session handling", "should_trigger": false}
+]

@@ -191,7 +191,17 @@ Never mutate a container while iterating over it.
 
 ## Default argument values
 
-- **Never a mutable default.** `def f(x: list[int] | None = None): x = x or []`.
+**Never a mutable default.** The default is built once, at `def` time, and every call shares it. Default to `None` and test identity:
+
+```python
+def f(x: list[int] | None = None) -> list[int]:
+    if x is None:
+        x = []
+    ...
+```
+
+Not `x = x or []`: a caller who passes their own empty list gets a fresh one back, and anything appended never reaches them.
+
 - Empty tuples (`()`) are immutable and OK.
 - Defaults evaluated at import time — never `def f(t=time.time()):`, never `def f(x=_FLAGS.value):`.
 

@@ -51,7 +51,7 @@
         ],
         "absent": [
           "time\\.sleep\\(",
-          "await\\s+requests\\.|^\\s*requests\\.(get|post)\\("
+          "(?m)await\\s+requests\\.|^\\s*requests\\.(get|post)\\("
         ]
       }
     },
@@ -69,16 +69,16 @@
         "requires-python declares a lower bound only. An upper cap such as >=3.12,<3.13 does not satisfy this — it breaks the package on the next Python release.",
         "A console entry point is declared under [project.scripts], and the module and function it names actually appear in the sketched source rather than dangling.",
         "Wheel packaging is configured for the src layout (e.g. [tool.hatch.build.targets.wheel] packages = [\"src/invsync\"]) so the package is actually included in the built wheel.",
-        "Dev-only dependencies are separated from runtime dependencies — via [dependency-groups] or an optional-dependencies extra — rather than mixed into [project].dependencies."
+        "Dev-only dependencies live in a PEP 735 [dependency-groups] table, not in [project].dependencies and not in an optional-dependencies extra — extras ship in the published metadata of a package headed for the private index."
       ],
       "signals": {
         "present": [
           "src/",
           "pyproject\\.toml",
-          "\\buv\\b",
+          "uv\\.lock",
           "\\bruff\\b",
           "\\[project\\.scripts\\]",
-          "dependency-groups|optional-dependencies",
+          "\\[dependency-groups\\]",
           "targets\\.wheel|packages\\s*=\\s*\\[\\s*\\\"src/"
         ],
         "absent": [
@@ -111,12 +111,135 @@
           "default_factory|mutable default|immutable default",
           "-O\\b|strips",
           "getLogger\\(__name__\\)",
-          "%s|%d",
-          "utcnow",
+          "\\b(?:log|logger)\\.\\w+\\(\\s*[\"'][^\"']*%[sd]",
+          "now\\(\\s*(?:UTC|timezone\\.utc|tz\\s*=)",
           "\\.join\\(",
-          "trailing|sep.*before|separator"
+          "trailing\\s+`?(?:sep|separator|delimiter|comma)|ends with `?(?:sep|the separator)"
         ],
         "absent": []
+      }
+    },
+    {
+      "id": 5,
+      "name": "pytest-async-suite",
+      "prompt": "can you write the tests for fetch_price in src/pricefeed/client.py? nothing's tested yet. I want the happy path, a symbol upstream doesn't know (404), upstream hanging past the timeout, and the currency handling — USD/EUR/GBP/KES plus lowercase input and something unsupported. we use pytest, deps are in pyproject. please don't make me wait 5s for the timeout test lol",
+      "expected_output": "A tests/ module that mocks HTTP at the httpx transport, parametrizes the currency cases, asserts each error path with pytest.raises, keeps the timeout test fast, relies on the configured asyncio_mode = auto, and sets asyncio_default_fixture_loop_scope because CI runs with PYTHONWARNINGS=error.",
+      "files": [
+        "evals/files/pytest-async-suite/pyproject.toml",
+        "evals/files/pytest-async-suite/.github/workflows/ci.yml",
+        "evals/files/pytest-async-suite/src/pricefeed/__init__.py",
+        "evals/files/pytest-async-suite/src/pricefeed/client.py"
+      ],
+      "expectations": [
+        "HTTP is mocked at the httpx layer — respx (already a dev dependency), pytest-httpx, or httpx.MockTransport — and no test can reach the real network.",
+        "The currency cases are one @pytest.mark.parametrize test (including the lowercase input), not a copy-pasted test per currency.",
+        "Each error path asserts the specific exception with pytest.raises — PriceNotFoundError for the 404, ValueError for the unsupported currency, TimeoutError for the hang — and at least one uses match= or checks the message.",
+        "The timeout test is fast: it passes a small timeout_s (or otherwise shortens the bound) instead of waiting out the 5-second default.",
+        "The tests rely on asyncio_mode = \"auto\" already set in pyproject.toml: async tests are plain async def functions, not each decorated with @pytest.mark.asyncio.",
+        "The response sets asyncio_default_fixture_loop_scope in [tool.pytest.ini_options] and connects it to CI: the workflow sets PYTHONWARNINGS=error, which turns pytest-asyncio's unset-loop-scope PytestDeprecationWarning into an INTERNALERROR before any test runs.",
+        "Tests import from the installed package (from pricefeed.client import ...), with no sys.path manipulation."
+      ],
+      "signals": {
+        "present": [
+          "parametrize",
+          "respx|httpx_mock|MockTransport",
+          "pytest\\.raises\\([^)]*match\\s*=",
+          "asyncio_default_fixture_loop_scope",
+          "PYTHONWARNINGS"
+        ],
+        "absent": [
+          "@pytest\\.mark\\.asyncio\\s*\\n\\s*async def",
+          "sys\\.path\\.(?:insert|append)\\("
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "name": "typed-decorator-version-floor",
+      "prompt": "Can you add a retry decorator to shipkit? Put it in src/shipkit/retry.py — retry on httpx.TransportError with exponential backoff, attempts configurable, and use it on HttpSource.fetch. mypy runs strict in CI so it has to keep the real signature through the decorator, no Any soup. While you're in sources.py, mark the overriding methods properly too — someone renamed Source.fetch last month and FileSource silently kept the old name until prod.",
+      "expected_output": "A ParamSpec-typed decorator factory with functools.wraps, written without PEP 695 syntax and with override imported from typing_extensions, because pyproject.toml declares requires-python >= 3.11; typing_extensions added as a runtime dependency; @override on every overriding method.",
+      "files": [
+        "evals/files/typed-decorator-version-floor/pyproject.toml",
+        "evals/files/typed-decorator-version-floor/src/shipkit/__init__.py",
+        "evals/files/typed-decorator-version-floor/src/shipkit/sources.py"
+      ],
+      "expectations": [
+        "The decorator preserves the wrapped signature with ParamSpec and a TypeVar (Callable[P, R] -> Callable[P, R]) and functools.wraps, not Callable[..., Any].",
+        "The response notices the 3.11 floor from pyproject.toml (requires-python >= 3.11, mypy python_version 3.11) and does not use PEP 695 syntax such as def retry[**P, R] — it is a SyntaxError on 3.11.",
+        "override is imported from typing_extensions (or behind a sys.version_info >= (3, 12) gate), never unconditionally from typing — typing.override does not exist on 3.11.",
+        "typing_extensions is added to [project].dependencies, because the import runs at runtime in a published library; adding it only to a dev group does not satisfy this.",
+        "@override is applied to every method that overrides Source: FileSource.fetch, HttpSource.fetch and HttpSource.close.",
+        "The retry catches only httpx.TransportError (not Exception), and re-raises the last error once attempts are exhausted instead of returning None."
+      ],
+      "signals": {
+        "present": [
+          "ParamSpec",
+          "from typing_extensions import[^\\n]*\\boverride\\b",
+          "functools\\.wraps|@wraps\\(",
+          "typing[_-]extensions\\s*[\"'>=~,]"
+        ],
+        "absent": [
+          "(?m)^from typing import[^\\n]*\\boverride\\b",
+          "(?m)^\\s*(?:def|class) \\w+\\[|^\\s*type \\w+\\s*=",
+          "Callable\\[\\.\\.\\.,\\s*Any\\]"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "name": "logging-vanishing-lines",
+      "prompt": "logging in invsync is a mess and I can't figure out why. when we run the `invsync` cli in prod we only get the two lines from cli.py — nothing from sync.py, not even the mismatch warnings, which is the whole point of the tool. but the cron job (src/invsync/worker.py) prints every warehouse client line twice. can you work out what's going on and fix it properly? not just for this one symptom",
+      "expected_output": "Diagnoses dictConfig's disable_existing_loggers=True silencing loggers created at import time, and the import-time basicConfig plus an extra handler in client.py causing duplicates; moves configuration to the entry points only and leaves library modules with getLogger(__name__).",
+      "files": [
+        "evals/files/logging-vanishing-lines/pyproject.toml",
+        "evals/files/logging-vanishing-lines/src/invsync/__init__.py",
+        "evals/files/logging-vanishing-lines/src/invsync/cli.py",
+        "evals/files/logging-vanishing-lines/src/invsync/client.py",
+        "evals/files/logging-vanishing-lines/src/invsync/sync.py",
+        "evals/files/logging-vanishing-lines/src/invsync/worker.py"
+      ],
+      "expectations": [
+        "Identifies the vanishing lines correctly: dictConfig defaults disable_existing_loggers to True, and invsync.sync and invsync.client were created at import time, before main() ran dictConfig, so they are disabled. The fix sets \"disable_existing_loggers\": False.",
+        "Identifies the duplicates correctly: client.py configures logging at import (basicConfig plus its own StreamHandler), and each record is emitted by the client logger's handler and again by the root handler it propagates to.",
+        "Removes all configuration from the library modules — no basicConfig or addHandler at import in client.py (a NullHandler at most) — rather than patching the duplicates with propagate = False.",
+        "Configures logging once per entry point: cli.main and worker.main each configure it (or call one shared configure function) at startup. worker.py needs this because it had been relying on client.py's import-time basicConfig.",
+        "Converts the f-string log calls in client.py and sync.py to %-style arguments.",
+        "The except block in sync.py keeps the traceback: logger.exception(...) or exc_info=True instead of interpolating the exception into an f-string."
+      ],
+      "signals": {
+        "present": [
+          "disable_existing_loggers[\"']?\\s*[:=]\\s*False",
+          "getLogger\\(__name__\\)",
+          "\\.exception\\(|exc_info\\s*=\\s*True",
+          "\\.\\w+\\(\\s*[\"'][^\"']*GET /counts/%s"
+        ],
+        "absent": [
+          "\\w+\\.propagate\\s*=\\s*False|[\"']propagate[\"']\\s*:\\s*False"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "name": "optional-accumulator-default",
+      "prompt": "need a helper for our ETL validation step: collect_errors(records, into=None). each record is a dict and it should check the required keys (id, sku, qty) are there and that qty is a positive int, append a readable error string per problem, and return the list. callers often pass their own list so errors from several batches pile up in one place:\n\n    errs = []\n    collect_errors(batch1, errs)\n    collect_errors(batch2, errs)\n    if errs:\n        alert(errs)\n\npython 3.12, typed please, it's going in our shared utils",
+      "expected_output": "A typed function that defaults into to None and tests identity (if into is None) so a caller's empty list is reused, accepts records as an abc type, and has a Google docstring that says into is mutated and returned.",
+      "files": [],
+      "expectations": [
+        "The default is None and the body tests identity — if into is None: into = [] (or into if into is not None else []). into = into or [] does not satisfy this: on the first call the caller's empty errs list is falsy, gets swapped for a new list, and the caller's errs never receives any errors.",
+        "There is no mutable default in the signature (into: list[str] = []).",
+        "records is annotated with a collections.abc type such as Iterable[Mapping[str, object]], into as list[str] | None, and the return as list[str].",
+        "The docstring is Google style with Args: and Returns: sections and states that into is appended to in place and returned."
+      ],
+      "signals": {
+        "present": [
+          "\\binto\\s+is\\s+(?:not\\s+)?None",
+          "collections\\.abc",
+          "Args:"
+        ],
+        "absent": [
+          "(?m)^\\s+into\\s*=\\s*into\\s+or\\b",
+          "def collect_errors\\([^)]*into\\s*:\\s*list\\[str\\]\\s*=\\s*\\[\\]"
+        ]
       }
     }
   ]

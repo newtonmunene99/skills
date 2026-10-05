@@ -2,6 +2,19 @@
 
 How to represent structured data: pick between `@dataclass`, `pydantic.BaseModel`, `TypedDict`, `NamedTuple`, and `Protocol`.
 
+## Contents
+
+- [Decision matrix](#decision-matrix)
+- [`@dataclass`](#dataclass)
+- [Pattern matching + dataclasses](#pattern-matching--dataclasses)
+- [Pydantic v2](#pydantic-v2)
+- [`TypedDict`](#typeddict)
+- [`NamedTuple`](#namedtuple)
+- [`Protocol` for domain interfaces](#protocol-for-domain-interfaces)
+- [Enums](#enums)
+- [Serialization boundaries](#serialization-boundaries)
+- [Anti-patterns](#anti-patterns)
+
 ## Decision matrix
 
 | Need                                                                 | Use                                   |
