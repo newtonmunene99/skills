@@ -41,9 +41,11 @@ So this skill reads more than one number. **Cyclomatic** complexity sizes testin
 **Cognitive** complexity and **nesting depth** speak to readability. **Length** is
 crude but honest. Together they say something CC alone cannot.
 
-This skill reports and recommends. It **does not edit source files or write linter
-config** — proposing a threshold is the deliverable; applying it is a separate
-request. The one file it does write is a throwaway HTML report of its own findings,
+This skill reports and recommends. It **writes linter config only when the user says
+yes** to the configure-first question in step 1a, and then the only source edits it
+makes are the inline exemptions that new gate needs (see 1a). Otherwise it **does not
+edit source files**: proposing a threshold is the deliverable and applying it is a
+separate request. The other file it writes is a throwaway HTML report of its own findings,
 covered in step 6.
 
 **The findings are the deliverable; the page is a convenience.** What this skill
@@ -73,6 +75,45 @@ and never a replacement for saying the findings out loud.
 
    A configured value counts as a decision only if someone changed it from the
    tool's default; an untouched default is a gap to report, not a choice to respect.
+
+   **1a. If the gate is missing or the tool is not installed, ask before auditing.**
+   When you are about to audit code on disk and step 1 lands on *missing*, or the
+   linter is not installed, stop and ask the user before measuring anything. An audit
+   without the tool is guesswork, and one run against a config that is about to be
+   added is wasted. Ask two things in one message:
+
+   - **Configure first?** Yes: write the language reference's *Recommended config*
+     (and name the install command for the tool if it is absent), then run it and
+     audit against real numbers. No: audit as-is, and report the missing gate as a
+     finding with the config block to paste.
+   - **Where should the config live?** Offer the candidates you actually found, not a
+     generic list: the repo root, the directory being audited (often the working
+     directory), the nearest existing config file for that tool (an existing
+     `pyproject.toml`, `eslint.config.js` or `.golangci.yml` gets the block added
+     rather than a new file beside it), or a path the user names. Say which you would
+     pick and why — in a monorepo, a root config covers every package, while a
+     package-level one changes nothing outside it. Default to the nearest existing
+     config file, else the root of the module or package that owns the code.
+
+   On a yes, configuring includes making the gate pass honestly and proving it works:
+
+   - Run the linter with the new config. For each existing violation the audit judges
+     *expected* (a dispatch table, a guard ladder), add an inline exemption carrying a
+     reason (`# noqa: C901 - flat dispatch, one branch per command`). Never a bare
+     `noqa` and never a per-file blanket ignore. These are the only source edits this
+     skill makes; list every file touched in the reply.
+   - Leave violations that *need attention* failing, and report them. Exempting them
+     to get a green run is how a gate goes quiet on day one.
+   - Confirm the gate fires: on a real finding, or on a throwaway deeply nested
+     function that you add, see flagged, and remove before finishing. A selected rule
+     that silently never runs (ruff's preview rules) is the failure to rule out.
+
+   Skip the question when there is nobody to ask or nothing to configure: you are
+   running as a subagent or non-interactively (proceed as if the answer were no, and
+   say so), the user pasted code or linter output rather than pointing at a project,
+   the request is itself to set up or choose a linter, or the user already said not to
+   change files. A gate that is *not biting* is not asked about; it is reported with
+   the diff in step 4.
 2. **Run the tool if it is installed**, scoped to the code in question. Real numbers
    beat estimates, and every tool counts differently enough that guessing is unsafe.
    If nothing is installed, say what you would run rather than eyeballing a score —
@@ -132,6 +173,10 @@ and never a replacement for saying the findings out loud.
   triple McCabe. Turning them on out of the box catches almost nothing, so teams
   believe they have a complexity gate when they do not. `cyclop` in the same file
   defaults to `10`.
+- **A selected rule that never runs is a missing gate.** Ruff's `PLR1702` is a
+  preview rule: without `preview = true` it is a silent no-op, and with preview but
+  without `explicit-preview-rules = true` it drags in every other preview rule. See
+  [python.md](references/python.md#the-plr-family).
 - **ESLint's `variant: "modified"` is the switch exemption as a config flag.** It
   counts a whole `switch` as +1 regardless of case count. Few people know it exists,
   and it is the direct fix for a dispatch table tripping the rule.
@@ -161,6 +206,9 @@ and never a replacement for saying the findings out loud.
   fits is `doMoreOfTheSameThing`, the split is making things worse.
 - **Treating a complexity report as a work queue.** Rank by what the number is
   telling you, not by the number.
+- **Auditing straight past a missing gate.** When there is a user to ask, offer to
+  configure the linter first and ask where the config should live; do not pick the
+  repo root silently, and do not write config without a yes.
 - **Reporting findings and saying nothing about the gate.** If the same review would
   produce the same findings next month because nothing is configured to catch them,
   the review is incomplete. Name the gate's state every time.

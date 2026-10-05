@@ -60,8 +60,11 @@ can score 5 apiece — a flat guard-clause ladder and a nested loop with a label
 `continue` — and be nothing alike to read. So the skill reads more than one number,
 and knows which number answers which question.
 
-It reports and recommends. It does not edit source files or write linter config — the
-config it proposes is a block to paste, not a change it makes.
+It reports and recommends. It does not edit source files. When a project has no
+complexity gate, or the linter is not installed, it asks first whether to configure
+one before auditing, and where the config should live (repo root, the audited
+directory, or an existing config file). It writes linter config only on a yes;
+otherwise the config it proposes is a block to paste.
 
 ## Some things it knows that are easy to get wrong
 

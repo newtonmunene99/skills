@@ -309,8 +309,9 @@ Three things make it useful rather than decorative:
    Gate the diff first. This sentence is what makes the recommendation survivable, and
    it is the one most often left out.
 
-The section is a **proposal, like the deep dives' `after` code**. This skill does not
-write linter config. Phrase it as the change to make, and let the user decide.
+The section is a **proposal, like the deep dives' `after` code**. This skill writes
+linter config only when the user said yes to configuring first (SKILL.md step 1a);
+otherwise phrase it as the change to make, and let the user decide.
 
 ## The ratio column
 
@@ -442,7 +443,7 @@ because that is the sentence the reader will paste into a `//nolint` comment.
 4. **No CI wiring.** This is a page for a human to look at once, not a quality gate.
    The gate is the linter config — recommend it in the
    [gate section](#the-gate-section) and in the reply, and leave applying it to the
-   user.
+   user unless they already said yes to configuring first.
 5. **Do not edit the project to accommodate it.** No `.gitignore` edits, no npm
    scripts, no Makefile targets. Say what would help and let the user decide.
 6. **Do not fabricate scores.** Every number on the page comes from a tool that

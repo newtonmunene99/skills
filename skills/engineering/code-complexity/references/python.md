@@ -89,8 +89,17 @@ gate, and it maps closely onto the multi-metric approach:
   in readability, not a regression. Raising it to 8–10 is defensible.
 - **`PLR0914` (max-locals, 15)** proxies how much state a reader must track.
 
-`PLR0914` and `PLR1702` are in preview in some ruff versions. Confirm against the
-version in use before relying on them in CI.
+**`PLR0914` and `PLR1702` are preview rules** (still so in ruff 0.16), and both halves
+of enabling them bite:
+
+- **Without preview they are silent no-ops.** Ruff prints *"Selection `PLR1702` has no
+  effect because preview is not enabled"* as a warning and then reports all checks
+  passed. A selected rule that never runs is a missing gate that looks configured.
+- **`preview = true` alone adopts every preview rule** in the groups already selected.
+  On one real project that added 69 unrelated errors. Pair it with
+  `explicit-preview-rules = true`, so only preview rules named by their full code run.
+
+Check `ruff check --show-settings` or the warning output after enabling; never assume.
 
 ## No cognitive complexity
 
@@ -111,6 +120,10 @@ implying ruff covers it.
 
 ```toml
 [tool.ruff.lint]
+# PLR1702 is a preview rule: without preview it silently does nothing, and preview
+# without explicit-preview-rules turns on every preview rule in the selected groups.
+preview = true
+explicit-preview-rules = true
 extend-select = [
   "C901",     # cyclomatic complexity
   "PLR1702",  # nesting depth — the readability signal
@@ -131,8 +144,12 @@ max-returns = 8       # relaxed: guard clauses are good style
 
 [tool.ruff.lint.per-file-ignores]
 # Fixtures and parametrised tests legitimately run long and branch wide.
-"tests/**" = ["C901", "PLR0912", "PLR0915"]
+# The leading **/ also catches packages/*/tests in a monorepo.
+"**/tests/**" = ["C901", "PLR0912", "PLR0913", "PLR0915", "PLR1702"]
 ```
+
+If the project already has a `per-file-ignores` entry for its tests, merge these codes
+into it rather than adding a second key for the same files.
 
 Deliberate choices here: nesting is tightened to 4 while the cyclomatic gate stays at
 McCabe's 10, and `max-returns` is loosened because the default punishes a style worth
@@ -141,6 +158,28 @@ encouraging.
 Ruff is also the formatter (`ruff format`), and formatting has no bearing on any of
 these scores — complexity is computed from the syntax tree, not the layout. Nobody
 can lower a score by reformatting.
+
+## Scoring every function
+
+Ruff reports only violations, so a per-function table for the report needs the
+thresholds forced to the floor and the scores parsed out of the messages:
+
+```bash
+ruff check <scope> --isolated --output-format json \
+  --select C901,PLR0912,PLR0915,PLR1702 \
+  --preview --config 'lint.explicit-preview-rules=true' \
+  --config 'lint.mccabe.max-complexity=0' \
+  --config 'lint.pylint.max-branches=0' \
+  --config 'lint.pylint.max-statements=0' \
+  --config 'lint.pylint.max-nested-blocks=1'
+```
+
+Each message carries the score, e.g. *"`f` is too complex (7 > 0)"*, so take the first
+number in the parentheses and key the row by `filename` plus the function name. Use
+`--isolated` so the project's own thresholds and ignores do not hide functions;
+depth 1 never shows up, which is fine because it is never a finding. Group by package
+from the file path in the same script that parses the JSON, rather than re-deriving
+counts with `sed` afterwards.
 
 ## Exemptions
 
