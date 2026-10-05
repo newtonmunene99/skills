@@ -67,6 +67,10 @@ weighed down by options, which defeats the point of a quick start.
 **Link companion docs rather than expanding them inline.** This keeps the README
 skimmable and pushes detail to where it belongs.
 
+**When a term changes, grep for every occurrence** across the whole document and
+its sibling docs. A rename applied to one section leaves the others describing
+something that no longer exists.
+
 **In templates, use HTML comments** (`<!-- ... -->`) for authoring guidance. They
 disappear from the rendered output once the placeholders are filled in, so a
 half-finished README still looks intentional.

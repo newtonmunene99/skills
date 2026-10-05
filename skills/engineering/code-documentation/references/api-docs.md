@@ -20,10 +20,17 @@ hovers, generated API sites) and gives the reader nothing in return.
 | Dart / Flutter    | dartdoc               | `///`; `{@template}` / `{@macro}` for shared blurbs, `[Symbol]` for references |
 | Rust              | rustdoc               | `///` on items, `//!` for module/crate-level; `# Examples`, `# Errors`, `# Panics` |
 | Java / Kotlin     | Javadoc / KDoc        | Above the declaration; `@param`, `@return`, `@throws`                          |
-| Protobuf (`.proto`) | Leading `//` comments | On every service, RPC, message, field, enum, and enum value — see below      |
+| Protobuf (`.proto`) | Leading `//` comments | On every service, RPC, message, field, and enum; enum values as needed — see below |
 
 Languages not listed follow the same principle: use the ecosystem's canonical
 convention and apply the general rules below.
+
+**Go grouped declarations.** A comment on a `const (...)` or `var (...)` block
+documents its members. Give a member its own doc only when it needs more than the
+group says.
+
+**TypeScript tags.** Omit `{Type}` in `@param` and `@returns`; the signature already
+carries the types, and a second copy drifts from it.
 
 For Python docstring mechanics — `Args:` / `Returns:` / `Raises:` sections and
 hanging-indent layout — the sibling `python-engineering` skill carries the full
@@ -63,7 +70,15 @@ type comments, Python docstrings. That makes the `.proto` file the single source
 truth for the API contract: a comment written once here reaches every consumer in
 every language. A field left bare here is bare everywhere.
 
-Comments are always **leading**, never trailing or inline.
+Comments are always **leading**, never trailing or inline. Any `//` line directly
+above a declaration becomes its doc, so separate lint directives, banners and
+snippet markers from the declaration with a blank line to keep them detached.
+
+### Packages
+
+Put the package overview as a leading comment on the `package` statement in exactly
+one file per package; BSR and protoc-gen-doc read it there. The package's other
+files carry none.
 
 ### Services
 
@@ -100,8 +115,11 @@ Say what the enum classifies, and state explicitly what the zero value (the
 
 ### Enum values
 
-Describe when each value applies. Restating the name in prose form
-(`ACTIVE` → "the active state") adds nothing.
+Describe when a value applies whenever the name does not make it obvious. Restating
+the name in prose form (`ACTIVE` → "the active state") adds nothing: leave
+genuinely self-evident values bare, with the enum's own comment explaining what they
+classify. If a coverage tool requires a comment on every value, write a short gloss
+that adds something, never `// Red` on `RED`.
 
 ### Related
 
