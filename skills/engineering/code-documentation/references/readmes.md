@@ -12,9 +12,12 @@ should not be forced into this shape.
 
 ## The spine
 
-Always present, always in this order:
+Always present in a top-level project README, always in this order:
 
 > Title → one-line tagline → About → Installation → Usage → License
+
+A package README inside a repo or monorepo may drop Installation and License: the
+root README already covers both, and repeating them there just drifts.
 
 Everything else is optional. Add a section only when there is real content for it.
 An empty heading is worse than a missing one: it promises the reader something and

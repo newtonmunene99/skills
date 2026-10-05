@@ -1,20 +1,23 @@
 ---
 name: code-documentation
 description: >-
-  Writes, audits, and improves inline code comments, API/symbol documentation,
-  README files, and Open Knowledge Format (OKF) knowledge documents, without
-  changing any behavior. Covers comment style (leading only, why not what), the
-  canonical doc convention per language — godoc, JSDoc/TSDoc, dartdoc, Python
-  docstrings, protobuf leading comments — README structure, and OKF v0.2
-  concept documents with their bundle layout, frontmatter, provenance and trust
-  fields. Use when writing or reviewing comments and docstrings, documenting a
-  package or public API, commenting a .proto file, auditing documentation
-  coverage, writing a README, authoring or auditing an OKF knowledge bundle or
-  concept doc, and after modifying code to check that its documentation is
-  still complete and accurate.
+  Writes, audits, and fixes code comments, docstrings, API/symbol docs, README
+  files, and Open Knowledge Format (OKF) knowledge documents, without changing any
+  behavior. Covers the canonical doc convention per language — godoc, JSDoc/TSDoc,
+  Python docstrings, dartdoc, rustdoc, Javadoc/KDoc, protobuf leading comments —
+  README structure, and OKF v0.2 bundles and concept docs. Use whenever the user
+  wants comments, docstrings, JSDoc, godoc, a doc.go or a README added, fixed,
+  explained or updated, even if they never say "documentation": "add docstrings",
+  "comment this", "this code is confusing, annotate it", "document this
+  package/API/.proto", "update the docs after my change". Also use to audit doc
+  coverage, to author or audit an OKF bundle, and after any code change that alters
+  a documented symbol's behavior. Owns comment and doc wording and coverage in every
+  language; the language skills and protocol-buffers own the code and API shape, and
+  git-code-review owns reviewing a diff or PR.
 disable-model-invocation: false
 compatibility: >-
-  No system dependencies. Judgement-heavy: most of the value is in leaving
+  No required system dependencies; the comments-only checks use git, buf or
+  python3 when present. Judgement-heavy: most of the value is in leaving
   acceptable documentation alone and asking before creating a knowledge
   bundle, both of which benefit from a high-reasoning model.
 ---
@@ -43,9 +46,12 @@ is not clear whether OKF documents are wanted, ask.**
 Go ahead without asking only when the intent is unmistakable — the user named the
 format, or a bundle already exists and the request plainly extends it, or a project
 guideline says knowledge lives in OKF. Ask when "document X" lands in a repo holding
-both code and a bundle, or when nothing OKF-shaped exists yet and the user has not
-named the format. Keep it to one question with the concrete options as a short list,
-then proceed on the answer.
+both code and a bundle, when a bundle exists but the request concerns code it does
+not cover, or when nothing OKF-shaped exists yet and the user has not named the
+format. Keep it to one question with the concrete options as a short list, then
+proceed on the answer. If the answer is "both", run them as separate passes so OKF
+frontmatter never leaks into source files and godoc conventions never leak into
+concept bodies.
 
 **OKF in an audit request licenses checking, not creating.** Audit the bundles that
 exist. Creating one, and choosing its level (service, repo, monorepo), takes that one
@@ -77,16 +83,36 @@ a bundle exists or creation is confirmed.
    files that changed and their immediate package or module context (the package's
    `doc.go`, the nearest `README.md`). Sweep the whole repo only when asked for an
    audit.
-6. **Verify behavior is unchanged.** For proto, diff `buf build
-   --exclude-source-info -o` output before and after; for Go and TS, diff
-   comment-stripped token streams. Then run build, vet and tests. gofmt or prettier
-   re-aligning a grouped declaration is expected, not a code change.
+6. **Verify behavior is unchanged**, mechanically rather than by rereading the diff,
+   and say in the reply which check ran:
+   ```bash
+   # Proto: comments live only in source info, so identical images mean an
+   # identical contract. -o needs a path; without one buf writes to /dev/null.
+   buf build --exclude-source-info -o before.binpb   # before editing
+   buf build --exclude-source-info -o after.binpb    # after
+   cmp before.binpb after.binpb
+
+   # Go: print changed lines that are not comments; no output means only
+   # comments moved. For TS/JS use '*.ts' and '(//|/\*|\*|$)', which also
+   # hides a code line starting with *, so glance at those.
+   git diff -U0 -- '*.go' | grep '^[+-][^+-]' | grep -vE '^[+-][[:space:]]*(//|$)'
+
+   # Python: docstrings are code to the parser, so compare ASTs with them
+   # dropped, using this skill's scripts/py_same_code.py.
+   git show HEAD:pkg/mod.py > /tmp/before.py
+   python3 scripts/py_same_code.py /tmp/before.py pkg/mod.py
+   ```
+
+   Then run build, vet and tests. gofmt or prettier re-aligning a grouped
+   declaration is expected, not a code change.
 7. **Report what changed** in the response: files touched, what was added, and any
    judgment calls made — the docstring style chosen when the project was ambiguous,
-   for instance. That belongs in the reply, never spliced into source files. When
-   committing, make one commit per kind of change: wrong comments fixed, new docs,
-   package docs (`doc.go`), trailing-to-leading moves, READMEs. Any non-documentation
-   change the user asked for (lint config, `go_package`, imports) gets its own commit.
+   for instance. That belongs in the reply, never spliced into source files. When a
+   pass mixes kinds of change (wrong comments fixed, new docs, `doc.go` files,
+   trailing-to-leading moves, READMEs), split commits by kind so reviewers can
+   approve the low-risk ones quickly; a small single-kind pass is one commit. Any
+   non-documentation change the user asked for (lint config, `go_package`, imports)
+   gets its own commit, so it never hides inside a comments diff.
 
 ## When to Read Which Reference
 
@@ -118,8 +144,10 @@ a bundle exists or creation is confirmed.
 - **Skip the trivia.** Getters, setters, imports, closing braces, and short
   self-explanatory code need nothing — unless there is a non-obvious side effect.
 - **README spine, in order:** Title → one-line tagline → About → Installation →
-  Usage → License. Everything else is optional and only earns a heading when there
-  is real content for it.
+  Usage → License, for a top-level project README. A package README inside a repo
+  or monorepo may drop Installation and License, which the root README already
+  covers. Everything else is optional and only earns a heading when there is real
+  content for it.
 - **OKF: `type` is the only required frontmatter key.** Missing optional fields are
   a conformant state, not a defect — don't report them as errors.
 - **OKF: `index.md` and `log.md` are reserved** at every level, and index files
@@ -145,6 +173,15 @@ a bundle exists or creation is confirmed.
   into source files when a request covers both code docs and knowledge docs.
 - **Editing a sanctioned computation** in an OKF Attested Computation. Describe and
   structure it; filling declared parameters is the only permitted change.
+
+## Neighbours
+
+This skill owns the words: comment, docstring and README content, and doc coverage,
+in every language including `.proto` comments. The language skills
+(`go-engineering`, `python-engineering`) and `protocol-buffers` own the code and API
+shape the docs describe; `python-engineering` keeps the Google docstring section
+mechanics. Reviewing a diff, branch or PR as a whole belongs to `git-code-review`;
+this skill supplies the documentation findings.
 
 ## Defaults
 

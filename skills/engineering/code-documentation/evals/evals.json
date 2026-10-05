@@ -14,7 +14,6 @@
         "The units are documented: capacity is in tokens and refillPerSecond is tokens per second. This was the user's stated reason for asking, so leaving units implicit fails the task.",
         "The unexported advance method is documented too, and its doc states the precondition that the caller must already hold b.mu - an invariant the compiler cannot express and the single most valuable comment in the file.",
         "Concurrency safety is stated somewhere the caller will see it (on Bucket or on Allow), since the struct holds a mutex and callers cannot otherwise tell.",
-        "No comment is placed inline or trailing on a code line; every comment is a leading comment on its own line.",
         "No code is changed - no renamed symbols, altered signatures, reordered fields, or behavioural edits. Any code problems noticed are mentioned in the reply instead of being fixed.",
         "Trivially self-evident lines are left uncommented; there is no line-by-line narration of the arithmetic in advance."
       ],
@@ -36,27 +35,27 @@
     {
       "id": 2,
       "name": "respect-existing-docs",
-      "prompt": "Doing a docs pass on `src/util/time.ts` before we cut the release. Have a look and fill in whatever's missing.\n\n```ts\nexport interface Range {\n  start: number;\n  end: number;\n}\n\n/**\n * Converts a duration in milliseconds to a human-readable string.\n *\n * Rounds to the nearest whole unit, so 1500ms renders as \"2s\" rather than\n * \"1.5s\". Callers needing precision should format the raw value themselves.\n *\n * @param ms - Duration in milliseconds. Negative values are treated as 0.\n * @returns A string like \"2s\", \"5m\", or \"3h\".\n */\nexport function formatDuration(ms: number): string {\n  const s = Math.max(0, Math.round(ms / 1000));\n  if (s < 60) return `${s}s`;\n  if (s < 3600) return `${Math.round(s / 60)}m`;\n  return `${Math.round(s / 3600)}h`;\n}\n\n/**\n * Parses an RFC 3339 timestamp into a Date.\n *\n * @param input - An RFC 3339 string, with or without a timezone offset.\n * @returns The parsed Date.\n * @throws {RangeError} If the string is not valid RFC 3339.\n */\nexport function parseTimestamp(input: string): Date {\n  const d = new Date(input);\n  if (Number.isNaN(d.getTime())) {\n    throw new RangeError(`not an RFC 3339 timestamp: ${input}`);\n  }\n  return d;\n}\n\nexport function nextRetryDelay(attempt: number, baseMs: number, capMs: number): number {\n  const exp = Math.min(capMs, baseMs * 2 ** attempt);\n  return Math.floor(Math.random() * exp);\n}\n\n/**\n * Returns true when the two ranges overlap at any point.\n *\n * Ranges are treated as half-open: [start, end). Two ranges that merely touch\n * - where one ends exactly where the other starts - do not overlap.\n */\nexport function rangesOverlap(a: Range, b: Range): boolean {\n  return a.start < b.end && b.start < a.end;\n}\n```",
-      "expected_output": "A TSDoc block added to nextRetryDelay only - documenting the three parameters with units, the return value, and the full-jitter randomisation. The three existing doc comments are left byte-identical.",
+      "prompt": "Doing a docs pass on `src/util/time.ts` before we cut the release. Have a look and fill in whatever's missing.\n\n```ts\nexport interface Range {\n  start: number;\n  end: number;\n}\n\n/**\n * Converts a duration in milliseconds to a human-readable string.\n *\n * Rounds to the nearest whole unit, so 1500ms renders as \"2s\" rather than\n * \"1.5s\". Callers needing precision should format the raw value themselves.\n *\n * @param ms - Duration in milliseconds. Negative values are treated as 0.\n * @returns A string like \"2s\", \"5m\", or \"3h\".\n */\nexport function formatDuration(ms: number): string {\n  const s = Math.max(0, Math.round(ms / 1000));\n  if (s < 60) return `${s}s`;\n  if (s < 3600) return `${Math.round(s / 60)}m`;\n  return `${Math.round(s / 3600)}h`;\n}\n\n/**\n * Parses an RFC 3339 timestamp into a Date.\n *\n * @param {string} input - An RFC 3339 string, with or without a timezone offset.\n * @returns {Date} The parsed Date.\n * @throws {RangeError} If the string is not valid RFC 3339.\n */\nexport function parseTimestamp(input: string): Date {\n  const d = new Date(input);\n  if (Number.isNaN(d.getTime())) {\n    throw new RangeError(`not an RFC 3339 timestamp: ${input}`);\n  }\n  return d;\n}\n\nexport function nextRetryDelay(attempt: number, baseMs: number, capMs: number): number {\n  const exp = Math.min(capMs, baseMs * 2 ** attempt);\n  return Math.floor(Math.random() * exp);\n}\n\n/**\n * Returns true when the two ranges overlap at any point.\n *\n * Ranges are treated as half-open: [start, end). Two ranges that merely touch\n * - where one ends exactly where the other starts - do not overlap\n */\nexport function rangesOverlap(a: Range, b: Range): boolean {\n  return a.start < b.end && b.start < a.end;\n}\n```",
+      "expected_output": "A TSDoc block added to nextRetryDelay only - documenting the three parameters with units, the return value, and the full-jitter randomisation. The three existing doc comments are left byte-identical, including parseTimestamp's {Type} annotations and rangesOverlap's missing final period, which are style differences rather than defects.",
       "files": [],
       "expectations": [
         "nextRetryDelay gains a TSDoc block documenting all three parameters (attempt, baseMs, capMs) with their units in milliseconds, plus the return value.",
         "That doc explains the full-jitter behaviour: the return is a random value between 0 and the computed exponential backoff, not the backoff itself. A reader cannot infer this from the name and it is the whole reason the function needs a doc.",
-        "The existing doc comment on formatDuration is left completely unchanged - not reworded, reformatted, or reordered. The sentence about 1500ms rendering as '2s' survives verbatim.",
-        "The existing doc comment on parseTimestamp is left completely unchanged, including its @throws {RangeError} tag and the 'with or without a timezone offset' wording.",
-        "The existing doc comment on rangesOverlap is left completely unchanged, including the half-open interval explanation and the note about ranges that merely touch.",
+        "The existing doc comment on parseTimestamp is left byte-identical, including its `{string}` and `{Date}` type annotations. Stripping them would match the usual TSDoc preference, but they are accurate, and rewriting acceptable docs to a style preference is churn.",
+        "The existing doc comment on rangesOverlap is left byte-identical, including its last sentence that ends without a period. A missing period is not a defect worth a diff line.",
+        "The existing doc comment on formatDuration is left completely unchanged; the sentence about 1500ms rendering as '2s' survives verbatim.",
         "No function body is modified and no code is changed anywhere in the file.",
-        "No inline or trailing comments are introduced.",
-        "The reply states which symbol was documented and why the others were left alone, rather than implying a full rewrite happened."
+        "The reply states which symbol was documented and why the others were left alone. It may note the mixed {Type} usage as an optional follow-up for a house style, but does not change it in this pass."
       ],
       "signals": {
         "present": [
           "Rounds to the nearest whole unit",
           "Callers needing precision should format the raw value themselves",
-          "An RFC 3339 string, with or without a timezone offset",
+          "@param \\{string\\} input - An RFC 3339 string, with or without a timezone offset",
+          "@returns \\{Date\\} The parsed Date",
           "@throws \\{RangeError\\}",
           "Ranges are treated as half-open",
-          "where one ends exactly where the other starts",
+          "do not overlap\\n \\*/",
           "@param attempt",
           "@param baseMs",
           "@param capMs",
@@ -68,8 +67,8 @@
     {
       "id": 3,
       "name": "readme-from-scratch",
-      "prompt": "we've got this internal CLI called `shiplog` that nobody outside my team knows how to use. it reads deploy events off a kafka topic and prints a timeline so you can see what shipped when, and it can also diff two deploys. install is `go install github.com/acme/shiplog@latest`. it needs three env vars - SHIPLOG_BROKERS (comma separated kafka brokers, no default), SHIPLOG_TOPIC (defaults to deploy-events), and SHIPLOG_TIMEOUT (seconds, defaults to 30). there's a CONTRIBUTING.md already. can you write us a proper README? MIT licensed.",
-      "expected_output": "A README following the spine Title -> tagline -> About -> Installation -> Usage -> License, with a separate Quick Start, the three env vars in a configuration table, usage grouped by use case, CONTRIBUTING.md linked rather than inlined, and no invented Roadmap or FAQ.",
+      "prompt": "we've got this internal CLI called `shiplog` that nobody outside my team knows how to use. it reads deploy events off a kafka topic and prints a timeline so you can see what shipped when, and it can also diff two deploys. install is `go install github.com/acme/shiplog@latest`. it needs three env vars - SHIPLOG_BROKERS (comma separated kafka brokers, no default), SHIPLOG_TOPIC (defaults to deploy-events), and SHIPLOG_TIMEOUT (seconds, defaults to 30). there's a CONTRIBUTING.md already. priya is halfway through adding slack notifications for failed deploys but that's not merged yet. can you write us a proper README? MIT licensed.",
+      "expected_output": "A README following the spine Title -> tagline -> About -> Installation -> Usage -> License, with a separate Quick Start, the three env vars in a configuration table, usage grouped by use case, CONTRIBUTING.md linked rather than inlined, no invented FAQ, and the unmerged Slack notifications kept out of Features and Usage (a clearly labelled Roadmap or 'in progress' note is fine).",
       "files": [],
       "expectations": [
         "The README follows the required spine in order: title, then a one-line tagline, then About, Installation, Usage, and License.",
@@ -77,10 +76,9 @@
         "Quick Start and Usage are separate sections rather than merged into one, so the first example stays minimal.",
         "The three environment variables are rendered as a table with their defaults - SHIPLOG_BROKERS with no default, SHIPLOG_TOPIC defaulting to deploy-events, SHIPLOG_TIMEOUT defaulting to 30 seconds - rather than described in prose.",
         "Usage examples are grouped by what the reader is trying to do (viewing a timeline, diffing two deploys) rather than by enumerating flags or commands.",
-        "CONTRIBUTING.md is linked rather than having its content inlined or invented.",
-        "No Roadmap or FAQ section is invented. The user described neither upcoming work nor recurring questions, and fabricating either fills the README with content nobody can act on.",
-        "No badges are added that assert something the user never stated, such as a build status or coverage percentage.",
-        "The License section states MIT."
+        "Slack notifications are not presented as a current capability: they appear in no Features bullet, Quick Start or Usage example, and no flag or env var for them is invented. Mentioning them is fine only under a Roadmap or an explicit 'not yet available' note.",
+        "No FAQ section is invented. The user described no recurring questions, and an invented FAQ fills the README with content nobody asked.",
+        "No badges are added that assert something the user never stated, such as a build status or coverage percentage."
       ],
       "signals": {
         "present": [
@@ -98,8 +96,9 @@
           "MIT"
         ],
         "absent": [
-          "## Roadmap",
-          "## FAQ"
+          "## FAQ",
+          "SHIPLOG_SLACK",
+          "--slack"
         ]
       }
     },
@@ -141,28 +140,174 @@
     {
       "id": 5,
       "name": "okf-ambiguous-scope-ask",
-      "prompt": "just merged the orders-api service. it's a Go service in `services/orders-api/` that serves the sales.orders table over REST - handlers, a store package, the usual. our repo also has a `knowledge/` bundle where we keep the OKF data docs. can you document it?",
-      "expected_output": "A single clarifying question. The request is ambiguous between godoc on the Go package and an OKF concept in the knowledge bundle, so the correct move is to ask which - offering the concrete options - and to write nothing until answered.",
-      "files": [],
+      "prompt": "just merged the orders-api service (`services/orders-api/`). can you document it?",
+      "expected_output": "A single clarifying question. The repo holds an undocumented Go service and, under docs/catalog/, a knowledge bundle (markdown with `type:` frontmatter) that covers sales.customers but not the sales.orders table the service serves. 'Document it' does not pick between godoc on the Go packages and a concept doc in that bundle, so the right move is to ask which - offering the concrete options - and to write nothing until answered.",
+      "files": [
+        "evals/files/okf-ambiguous-scope-ask/README.md",
+        "evals/files/okf-ambiguous-scope-ask/docs/catalog/index.md",
+        "evals/files/okf-ambiguous-scope-ask/docs/catalog/tables/customers.md",
+        "evals/files/okf-ambiguous-scope-ask/docs/catalog/tables/index.md",
+        "evals/files/okf-ambiguous-scope-ask/go.mod",
+        "evals/files/okf-ambiguous-scope-ask/services/orders-api/main.go",
+        "evals/files/okf-ambiguous-scope-ask/services/orders-api/store/store.go"
+      ],
       "expectations": [
-        "Recognises that 'document it' is ambiguous here: the repo holds both an undocumented Go service and an OKF knowledge bundle, and those are different artifacts written for different readers.",
-        "Asks the user which is wanted instead of silently picking one, and instead of defaulting to doing both.",
-        "The question names the concrete options - godoc and comments on the Go package under services/orders-api/, an OKF concept in knowledge/ describing the API or the dataset it serves, or both - rather than being an open-ended 'what would you like?'.",
+        "Notices the docs/catalog/ bundle by inspecting the repo, even though the prompt never mentions it or uses the words OKF or knowledge.",
+        "Asks the user which is wanted instead of silently writing godoc for the service, and instead of defaulting to doing both.",
+        "The question names the concrete options - godoc and comments on the Go packages under services/orders-api/, a concept doc for sales.orders in docs/catalog/, or both - rather than an open-ended 'what would you like?'.",
         "Asks a single question rather than a list of questions. One decision is genuinely blocked; nothing else is.",
-        "Does not create, or show the full content of, any OKF concept document before the answer arrives. Standing up bundle content is the scope decision being asked about.",
-        "Does not speculatively add or modify a bundle index.md or log.md.",
+        "Leaves the project untouched: no comments added to the Go files and no concept doc, index.md or log.md created or modified under docs/catalog/ before the answer arrives.",
         "Any recommendation offered alongside the question is brief - a sentence, not a plan."
       ],
       "signals": {
         "present": [
           "\\?",
-          "OKF|knowledge/",
+          "docs/catalog",
           "godoc|doc comment|package doc|comments",
           "orders-api"
         ],
         "absent": [
-          "\\ntype: ",
-          "generated:\\s*\\{"
+          "(^|\\n)\\+(type|title|description): ",
+          "(^|\\n)\\+// (Package|Store|Order|New|Get|Put) "
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "name": "comment-proto-keep-lint-out-of-ci",
+      "prompt": "the frontend folks keep asking what the order statuses mean and what unit total_micros is in. can you comment proto/acme/orders/v1/orders.proto properly? also we never set up any lint rules in buf.yaml, add those while you're in there",
+      "expected_output": "Leading comments on the package, service, every RPC, message and field of orders.proto, with total_micros' unit and the ORDER_STATUS_UNSPECIFIED meaning stated and self-evident enum values not restated. buf.yaml gains a lint section without the COMMENTS category, which is offered separately. No field, RPC or message is renamed, renumbered or reshaped; the lint findings about customerId and the shared Order response are reported, not fixed. The descriptor is shown unchanged with buf build --exclude-source-info and cmp.",
+      "files": [
+        "evals/files/comment-proto-keep-lint-out-of-ci/buf.yaml",
+        "evals/files/comment-proto-keep-lint-out-of-ci/proto/acme/orders/v1/orders.proto"
+      ],
+      "expectations": [
+        "Every service, RPC, message and field in orders.proto has a leading // comment; none is trailing on the same line as a declaration.",
+        "total_micros documents its unit: millionths of the currency_code unit (so 1.50 USD is 1500000), not just 'the order total'.",
+        "The OrderStatus enum comment, or the comment on ORDER_STATUS_UNSPECIFIED, says what the zero value means (status not set; never a real order state), since proto3 cannot tell unset from zero.",
+        "Self-evident enum values are left bare or get a gloss that adds information (when it applies); none carries a comment that only restates its name, such as '// Paid.' on ORDER_STATUS_PAID.",
+        "A package overview is written as a leading comment on the package statement.",
+        "buf.yaml gains a lint section (for example `use: [STANDARD]`) that does not include the COMMENTS category, and the reply offers COMMENTS as a separate opt-in rather than turning missing comments into a CI failure nobody asked for.",
+        "No field, RPC, message or enum is renamed, renumbered, added or reshaped: customerId stays customerId and GetOrder/CancelOrder still return Order. The lint findings these trigger are reported in the reply as follow-ups, not fixed in a documentation pass.",
+        "The reply reports a mechanical check that the contract is unchanged, such as building the image with `buf build --exclude-source-info -o` before and after and comparing the files, rather than asserting it from reading the diff.",
+        "The lint configuration is reported as a separate change from the comments (separate commit or clearly separated in the reply), so the reviewer can approve the comments without reviewing a CI change."
+      ],
+      "signals": {
+        "present": [
+          "micros",
+          "UNSPECIFIED",
+          "STANDARD",
+          "exclude-source-info",
+          "cmp|identical|unchanged"
+        ],
+        "absent": [
+          "(^|\\n)\\+\\s*-\\s*COMMENTS\\b",
+          "\\+\\s*string customer_id = 2",
+          "GetOrderResponse \\{"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "name": "update-docs-after-change",
+      "prompt": "I just changed ratelimit.Allow so instead of returning ErrLimitExceeded it returns how long you'd have to wait (0 means go ahead and the tokens are taken). can you make sure the docs are all good?",
+      "expected_output": "The stale docs about the change are fixed and nothing else: Allow's doc comment, the package overview in doc.go, and the README usage snippet now describe the returned wait duration. internal/store, which is undocumented but unrelated, is left untouched (at most mentioned). No code changes, with a comments-only check reported.",
+      "files": [
+        "evals/files/update-docs-after-change/README.md",
+        "evals/files/update-docs-after-change/go.mod",
+        "evals/files/update-docs-after-change/internal/ratelimit/doc.go",
+        "evals/files/update-docs-after-change/internal/ratelimit/ratelimit.go",
+        "evals/files/update-docs-after-change/internal/store/store.go"
+      ],
+      "expectations": [
+        "Allow's doc comment is rewritten for the new contract: it returns 0 and takes n tokens when enough are available, otherwise returns how long until n tokens will be available and takes nothing. The ErrLimitExceeded wording is gone.",
+        "The package overview in internal/ratelimit/doc.go no longer says Allow returns ErrLimitExceeded; it is updated to the wait-duration behaviour.",
+        "The README Usage snippet that does `if err := b.Allow(1); err != nil` is updated to the new return value, since it no longer compiles against the changed API and is the nearest README to the change.",
+        "internal/store/store.go is not modified. It is undocumented, but it is outside the changed package; a docs pass after a change stays within the changed files and their immediate package context. Mentioning it as a possible follow-up is fine.",
+        "No Go code is changed - in particular ErrLimitExceeded is not re-added and Allow's signature and body are untouched.",
+        "Already-accurate docs in the changed package (Bucket, New, advance) are left as they are rather than reworded.",
+        "The reply reports a mechanical comments-only check, such as filtering `git diff` to non-comment lines or running go build and go vet, rather than only asserting no code changed."
+      ],
+      "signals": {
+        "present": [
+          "time\\.Duration|wait|how long",
+          "Allow"
+        ],
+        "absent": [
+          "(^|\\n)\\+// (Store|New|Get|Put) ",
+          "(^|\\n)\\+var ErrLimitExceeded"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "name": "audit-skips-generated-and-okf",
+      "prompt": "can you do a docs audit on this repo? code docs, the README, and our OKF knowledge docs too. just tell me what's missing or wrong for now, don't change anything yet",
+      "expected_output": "A read-only findings report that leads with the actively wrong docs (Add's comment says it returns an error but it panics; the README calls money.Add as if it returned an error), then real gaps (Split undocumented, README missing its tagline, About and Installation). The generated api/orderspb/orders.pb.go and the copied third_party/semver are excluded from the inventory and the reply says so. There is no OKF bundle: the audit says so and at most asks whether to create one, and creates nothing.",
+      "files": [
+        "evals/files/audit-skips-generated-and-okf/README.md",
+        "evals/files/audit-skips-generated-and-okf/api/orderspb/orders.pb.go",
+        "evals/files/audit-skips-generated-and-okf/go.mod",
+        "evals/files/audit-skips-generated-and-okf/pkg/money/money.go",
+        "evals/files/audit-skips-generated-and-okf/third_party/semver/semver.go"
+      ],
+      "expectations": [
+        "Flags Add's doc comment as wrong - it promises an error on currency mismatch, but the function panics - and ranks wrong docs ahead of missing ones.",
+        "Flags the README's `total, err := money.Add(a, b)` example as wrong, since Add returns a single value.",
+        "Flags Split as undocumented and names what its doc needs: how the remainder is distributed (the first a.Minor % n parts get one extra minor unit) and the behaviour for n <= 0.",
+        "Excludes api/orderspb/orders.pb.go (it carries a 'Code generated ... DO NOT EDIT' header) and third_party/semver from the findings, and says they were excluded and why, instead of listing their missing docs.",
+        "States that the repo has no OKF bundle, rather than reporting OKF findings against nothing, and does not create or draft one; at most it asks one question about whether and at what level to start one.",
+        "Lists the README's missing spine sections (tagline, About, Installation) as findings without proposing padded sections such as FAQ or Roadmap.",
+        "Leaves every file unmodified, as the user asked.",
+        "Does not flag the acceptable existing docs (the package comment, Amount, String) as needing rewrites."
+      ],
+      "signals": {
+        "present": [
+          "panic",
+          "Split",
+          "generated|DO NOT EDIT",
+          "third_party",
+          "no (OKF|knowledge) bundle|no bundle|doesn't have|does not have|not find|couldn't find|no .*OKF"
+        ],
+        "absent": [
+          "(^|\\n)type: ",
+          "(^|\\n)\\+"
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "name": "project-style-guide-wins",
+      "prompt": "can you add docstrings to billing/proration.py? nobody can follow the proration math in code review",
+      "expected_output": "NumPy-style docstrings, as CONTRIBUTING.md requires, on the module, ProrationError and all three functions, without types repeated in Parameters. The docs explain the proration rule (remaining days over total days, banker's rounding to cents) and when ProrationError is raised. No code changes, verified with an AST comparison that ignores docstrings.",
+      "files": [
+        "evals/files/project-style-guide-wins/CONTRIBUTING.md",
+        "evals/files/project-style-guide-wins/billing/__init__.py",
+        "evals/files/project-style-guide-wins/billing/__pycache__/__init__.cpython-314.pyc",
+        "evals/files/project-style-guide-wins/billing/__pycache__/proration.cpython-314.pyc",
+        "evals/files/project-style-guide-wins/billing/proration.py",
+        "evals/files/project-style-guide-wins/pyproject.toml"
+      ],
+      "expectations": [
+        "Docstrings use the NumPy convention (`Parameters` / `Returns` / `Raises` headings underlined with dashes), not Google's `Args:` sections, because the project's CONTRIBUTING.md says so and a project style guide overrides the skill's and the model's defaults.",
+        "Parameter entries do not repeat the types already in the annotations, as CONTRIBUTING.md asks (for example `amount` rather than `amount : Decimal`).",
+        "The reply names CONTRIBUTING.md as the reason for the style choice.",
+        "prorate's docstring explains the rule: the share of amount for the days from change to end, over the days from start to end, rounded to cents with banker's rounding (ROUND_HALF_EVEN).",
+        "The ProrationError cases are documented under Raises: end not after start, and change outside [start, end).",
+        "credit_for_downgrade documents that it returns zero for an upgrade or no change.",
+        "No code is changed. The reply reports a check that only docstrings changed, such as comparing ASTs with docstrings removed, rather than asserting it."
+      ],
+      "signals": {
+        "present": [
+          "Parameters\\n\\s*-{3,}",
+          "Returns\\n\\s*-{3,}",
+          "Raises\\n\\s*-{3,}",
+          "CONTRIBUTING",
+          "ROUND_HALF_EVEN|banker"
+        ],
+        "absent": [
+          "Args:",
+          "amount : Decimal"
         ]
       }
     }

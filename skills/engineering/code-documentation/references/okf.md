@@ -25,40 +25,19 @@ frontmatter, readable with `cat` and shippable with `git clone`.
 
 ## Before you write anything
 
-**Creating OKF documents is a scope decision, not a formatting one.** A knowledge
-bundle is a new artifact in someone's repository with its own conventions and its
-own maintenance burden. Writing one uninvited is the documentation equivalent of
-adding a new top-level directory nobody asked for.
+Whether to write OKF at all is decided by the scope check in SKILL.md ("Scope check
+before writing OKF"); that copy is the authoritative one, so it is not repeated here.
+By the time this file is open, a bundle exists or its creation was confirmed.
 
-So: **when it is not clear whether OKF documents are wanted, ask.**
+Two details the check relies on:
 
-Proceed without asking only when the intent is unmistakable:
-
-- The user named the format — "OKF", "knowledge bundle", "concept doc". In an
-  audit request, naming OKF only licenses checking the bundles that exist; creating
-  one, and choosing its level (service, repo, monorepo), still takes a question.
-- The repository already contains a bundle (a directory of `.md` files with `type:`
-  frontmatter, usually alongside an `index.md`) **and** the request is plainly about
-  extending it.
-- A project guideline or `CONTRIBUTING.md` says knowledge lives in OKF.
-
-Ask when any of these hold:
-
-- The request is "document X" in a repo that has both code and a bundle. Godoc for
-  the package and an OKF concept for the dataset it serves are different jobs with
-  different readers, and "document it" does not pick one.
-- A bundle exists but the request concerns code the bundle does not cover.
-- Nothing OKF-shaped exists yet and the user has not named the format. Standing up
-  a bundle is a decision about how a team stores knowledge — theirs to make.
-
-A good question is short and offers the concrete options, for example: *"You've got
-a `knowledge/` bundle and an undocumented Go package here. Do you want godoc on the
-package, an OKF concept describing the dataset, or both?"* One question, options as
-a short list — not a questionnaire.
-
-When the answer is "both", they are still separate passes with separate rules. Do
-not let OKF frontmatter leak into source files or godoc conventions leak into
-concept bodies.
+- **Recognising a bundle.** A directory of `.md` files with `type:` frontmatter,
+  usually alongside an `index.md`, is a bundle even when nobody calls it OKF. Look
+  for one before treating a request as "nothing OKF-shaped exists".
+- **The question, when one is needed,** is short and offers the concrete options,
+  for example: *"You've got a `knowledge/` bundle and an undocumented Go package
+  here. Do you want godoc on the package, an OKF concept describing the dataset, or
+  both?"*
 
 ## Bundle structure
 

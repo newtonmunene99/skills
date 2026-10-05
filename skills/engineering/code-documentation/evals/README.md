@@ -10,28 +10,38 @@ the skill and once without, so the benchmark shows the delta rather than an
 absolute score. An expectation that passes in both columns isn't measuring the
 skill; it's measuring the model. Those are worth rewriting.
 
-> These five prompts are written but have not been run yet. There is no
-> `iteration-1/` until someone does step 1 below.
+> Iteration 1 ran the first five prompts
+> ([`code-documentation-workspace/iteration-1/benchmark.md`](../../code-documentation-workspace/iteration-1/benchmark.md), gitignored):
+> 98% with the skill, 100% without. The prompts were too easy to show a delta, so
+> evals 2, 3 and 5 were hardened, a few always-passing expectations were dropped,
+> and evals 6-9 were added for the rules nothing tested. Rerun from step 1 to
+> measure the new set.
 
 ## Files
 
 | File | Purpose |
 | ---- | ------- |
-| `evals.json` | The 5 eval prompts and their expectations (what the grader checks) |
-| `prepare_workspace.py` | Builds the workspace directory layout and `eval_metadata.json` from `evals.json` |
+| `evals.json` | The 9 eval prompts and their expectations (what the grader checks) |
+| `files/<eval-name>/` | Fixture projects for the evals that work on a repo on disk (5-9) |
+| `prepare_workspace.py` | Builds the workspace directory layout and `eval_metadata.json` from `evals.json`, and copies each eval's fixture project |
 | `run_benchmark.sh` | Aggregates grading results and opens the review viewer |
 
-## What the five prompts target
+## What the prompts target
 
 | id | name | The thing a bare model gets wrong |
 | -- | ---- | --------------------------------- |
-| 1 | `document-go-package` | Documenting the unexported `advance` with its locking precondition, and stating units. Baselines document the exported API and stop |
-| 2 | `respect-existing-docs` | **Idempotency.** Three of the four symbols already have good docs. Baselines rewrite all four |
-| 3 | `readme-from-scratch` | Not inventing a Roadmap or FAQ, and rendering config as a table. Baselines pad the README with both |
+| 1 | `document-go-package` | Documenting the unexported `advance` with its locking precondition, and stating units |
+| 2 | `respect-existing-docs` | **Idempotency.** The existing docs carry `{Type}` tags and a missing period, which the usual TSDoc preference would "fix". Leaving them byte-identical is the test |
+| 3 | `readme-from-scratch` | Not inventing a FAQ, rendering config as a table, and keeping the unmerged Slack work out of Features and Usage |
 | 4 | `okf-concept-and-index` | Leaving `index.md` frontmatter-free, using bundle-absolute links, and **not fabricating `verified`** |
-| 5 | `okf-ambiguous-scope-ask` | **Asking instead of guessing.** The repo has both Go code and an OKF bundle; "document it" picks neither |
+| 5 | `okf-ambiguous-scope-ask` | **Asking instead of guessing.** The prompt never says OKF; the bundle under `docs/catalog/` is only visible on disk, so a baseline writes godoc |
+| 6 | `comment-proto-keep-lint-out-of-ci` | Adding buf lint **without** the `COMMENTS` category, leaving `customerId` and the shared `Order` response alone, and proving the descriptor unchanged with `buf build -o` and `cmp` |
+| 7 | `update-docs-after-change` | **Scope.** Fixing the stale `Allow` docs in `doc.go` and the README, and not sweeping the undocumented `internal/store` |
+| 8 | `audit-skips-generated-and-okf` | Leaving generated and `third_party/` code out of the audit, leading with wrong docs, and **not creating** an OKF bundle that does not exist |
+| 9 | `project-style-guide-wins` | Following `CONTRIBUTING.md`'s NumPy docstring rule over the Google default, and checking only docstrings changed |
 
-Evals 2 and 5 are the ones to watch, and both are scored on restraint.
+Evals 2, 5 and 7 are scored on restraint; 6 and 9 also check that the reply names a
+mechanical comments-only check rather than asserting one.
 
 Eval 2's signals are exact substrings lifted from the *existing* doc comments — if
 the skill rewrote them, those strings vanish and the signal goes red. That makes
@@ -39,9 +49,8 @@ churn mechanically detectable rather than a judgement call, which is unusual and
 worth keeping.
 
 Eval 5 has no correct artifact at all: the right output is one question. Its
-`absent` signals check that nothing was written — no `type:` frontmatter, no
-`generated:` block — because a baseline's failure mode here is to helpfully produce
-a knowledge bundle nobody asked for.
+`absent` signals check that the project diff adds no frontmatter and no Go doc
+comments, because a baseline's failure mode here is to pick one artifact and write it.
 
 Eval 4 carries the integrity check. Its `absent` signals are `by: human:` and
 `verified: {`, so a fabricated human sign-off on content nobody reviewed shows up
@@ -77,6 +86,11 @@ code-documentation-workspace/
     │   │   └── timing.json       # tokens + duration, from the run notification
     │   └── without_skill/run-1/  # same prompt, no skill — the baseline
     ├── eval-2/ ...
+    ├── eval-5/                   # an eval with fixture files
+    │   ├── inputs/               # pristine fixture project, to diff against
+    │   └── with_skill/run-1/
+    │       ├── project/          # working copy the agent edits in place
+    │       └── outputs/          # the agent's reply
     ├── benchmark.json            # from aggregate_benchmark
     └── benchmark.md
 ```
@@ -92,6 +106,11 @@ matches the skill directory name (`code-documentation`).
 python evals/prepare_workspace.py              # iteration 1
 python evals/prepare_workspace.py --iteration 2
 ```
+
+For evals with `files`, each run gets its own copy of the fixture project in
+`<config>/run-1/project/`, and `eval-N/inputs/` keeps a pristine copy. Point the
+agent at `project/` as its working directory and let it edit in place; its reply
+still goes to `outputs/`.
 
 ### 2. Run each prompt twice
 
@@ -145,5 +164,7 @@ in `expectations` rather than `signals`. "Explains the full-jitter behaviour",
 "states the locking precondition", "usage grouped by use case" — none of those are
 regex-expressible, and a grader has to read the answer. The signals only catch the
 textually-detectable subset: whether a required string appeared, and whether an
-existing one survived. Read a flat signal delta as "no *textual* difference", never
+existing one survived. For fixture evals, match them against the reply plus
+`diff -ru inputs <config>/run-1/project`, which is why their `absent` patterns
+look for added lines (`+...`). Read a flat signal delta as "no *textual* difference", never
 as "no difference".
