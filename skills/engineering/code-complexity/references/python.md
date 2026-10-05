@@ -151,6 +151,12 @@ max-returns = 8       # relaxed: guard clauses are good style
 If the project already has a `per-file-ignores` entry for its tests, merge these codes
 into it rather than adding a second key for the same files.
 
+In a monorepo, mind where the block lands. Ruff uses the closest `pyproject.toml` that
+has a `[tool.ruff]` section and does not merge it with parents, so adding this to a
+package's `pyproject.toml` silently drops the root's ruff settings for that package.
+Put it in the root config, or start the package's section with
+`extend = "../../pyproject.toml"` (the relative path to the root).
+
 Deliberate choices here: nesting is tightened to 4 while the cyclomatic gate stays at
 McCabe's 10, and `max-returns` is loosened because the default punishes a style worth
 encouraging.

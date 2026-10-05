@@ -100,6 +100,7 @@
         "Flags that C901 is not in ruff's default rule selection: without adding it to select or extend-select, a configured max-complexity never actually runs. This is the gap that matters more than the number.",
         "Pairs the threshold with an exemption mechanism - `# noqa: C901` carrying a written reason - rather than presenting a bare gate. A gate with no escape hatch gets either bad refactors or gets switched off.",
         "Recommends at least one readability metric alongside the cyclomatic gate, most naturally PLR1702 for nesting depth, explaining that cyclomatic complexity sizes test effort rather than measuring how hard the code is to read.",
+        "If it recommends PLR1702 (or PLR0914), says it is a preview rule: without `preview = true` ruff ignores it with only a warning, and `preview = true` should be paired with `explicit-preview-rules = true` so it does not switch on every other preview rule. Recommending PLR1702 in a plain `extend-select` with no mention of preview fails this.",
         "Warns against carrying the number to other tools or languages, since different tools score the same code differently.",
         "Shows the pyproject.toml configuration concretely, including both the extend-select entry and the mccabe settings block.",
         "Does not present 10 as an empirically settled fact. The honest framing is that it is a defensible convention with mixed supporting evidence, not a proven optimum."
@@ -112,7 +113,8 @@
           "noqa",
           "mccabe|max-complexity",
           "PLR1702|nest",
-          "pyproject"
+          "pyproject",
+          "preview"
         ],
         "absent": []
       }
@@ -201,7 +203,7 @@
           "30",
           "gocognit",
           "nolint|gocyclo:ignore",
-          "10|15",
+          "min-complexity:\\s*1[0-5]\\b",
           "nestif|nest"
         ],
         "absent": []
@@ -210,8 +212,8 @@
     {
       "id": 8,
       "name": "findings-without-the-page",
-      "prompt": "same numbers as last week's run, pasted below. don't write any files this time, just tell me here - i'm on a call in 10 and want to know what to hand to the two people picking this up.\n\n```\n$ gocyclo -over 10 -ignore \"_test\" .\n21 wire     decodeFrame       internal/wire/decode.go:31:1\n13 billing  ApplyAdjustments  internal/billing/adjust.go:120:1\n11 billing  UnmatchedTotals   internal/billing/reconcile.go:88:1\nAverage: 3.4\n\n$ gocognit -over 10 -ignore \"_test\" .\n34 billing  UnmatchedTotals   internal/billing/reconcile.go:88:1\n20 billing  ApplyAdjustments  internal/billing/adjust.go:120:1\n 3 wire     decodeFrame       internal/wire/decode.go:31:1\n```",
-      "expected_output": "The complete findings in the reply and no file written: UnmatchedTotals first (highest cognitive, ratio ~3.1), ApplyAdjustments second, decodeFrame exempt as a dispatch table despite topping cyclomatic. Two assignable items, plus the gate recommendation. The declined page changes the rendering, not the content.",
+      "prompt": "same numbers as last week's run, pasted below. don't write any files this time, just tell me here - i'm on a call in 10 and want to know what to hand to the two people picking this up. also no idea why CI never caught any of this, we added gocyclo to the enable list in .golangci.yml back in march and haven't touched it since.\n\n```\n$ gocyclo -over 10 -ignore \"_test\" .\n21 wire     decodeFrame       internal/wire/decode.go:31:1\n13 billing  ApplyAdjustments  internal/billing/adjust.go:120:1\n11 billing  UnmatchedTotals   internal/billing/reconcile.go:88:1\nAverage: 3.4\n\n$ gocognit -over 10 -ignore \"_test\" .\n34 billing  UnmatchedTotals   internal/billing/reconcile.go:88:1\n20 billing  ApplyAdjustments  internal/billing/adjust.go:120:1\n 3 wire     decodeFrame       internal/wire/decode.go:31:1\n```",
+      "expected_output": "The complete findings in the reply and no file written: UnmatchedTotals first (highest cognitive, ratio ~3.1), ApplyAdjustments second, decodeFrame exempt as a dispatch table despite topping cyclomatic. Two assignable items, plus the gate verdict: gocyclo enabled with no setting runs at golangci-lint's default min-complexity of 30, above every score here, so CI was never going to fire. The declined page changes the rendering, not the content.",
       "files": [],
       "expectations": [
         "Writes no HTML report, and does not push back, negotiate, or ask again. The page is a default, not a requirement.",
@@ -219,6 +221,7 @@
         "Leads with UnmatchedTotals: 3rd on cyclomatic but 1st on cognitive, a ratio above 3, which says nesting rather than branch count is the cost.",
         "Exempts decodeFrame despite it topping the cyclomatic list, on the evidence of its cognitive score of 3 - a flat dispatch table, wide but readable, where refactoring would be manufactured work.",
         "Frames the output as something the user can hand to two other people: named functions with a stated reason, not a ranked dump of the linter output they already have.",
+        "Answers the CI question with the cause: gocyclo enabled in golangci-lint without a `min-complexity` setting uses the default of 30, above the highest score here (21), so the gate is configured but cannot fire. It does not guess at CI wiring problems instead.",
         "Still gives the gate recommendation - the thresholds worth configuring in .golangci.yml so this is caught continuously rather than re-run by hand each week - since dropping the page does not drop the durable half of the review.",
         "Does not claim to have written, saved, or generated a report, and does not offer the file as a follow-up the user already declined."
       ],
@@ -227,10 +230,125 @@
           "UnmatchedTotals",
           "decodeFrame",
           "cognitive",
-          "gocognit|gocyclo"
+          "gocognit|gocyclo",
+          "30"
         ],
         "absent": [
           "complexity-report.html"
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "name": "missing-gate-asks-first",
+      "prompt": "can you go through services/billing and tell me which functions are actually worth cleaning up? i'm new on this codebase and everyone keeps calling billing the scary part. there's a ruff setup at the root already i think",
+      "expected_output": "No audit yet. The skill finds that the root pyproject.toml tunes `[tool.ruff.lint.mccabe] max-complexity = 12` but never selects C901, so the gate is missing even though it looks configured. It stops and asks, in one message, whether to configure the gate first and where the config should live, naming the real candidates (root pyproject.toml vs services/billing/pyproject.toml) with a pick and the reason, including that a [tool.ruff] section in the package file would shadow the root config unless it uses `extend`.",
+      "files": [
+        "evals/files/missing-gate-asks-first/pyproject.toml",
+        "evals/files/missing-gate-asks-first/services/billing/pyproject.toml",
+        "evals/files/missing-gate-asks-first/services/billing/src/billing/__init__.py",
+        "evals/files/missing-gate-asks-first/services/billing/src/billing/events.py",
+        "evals/files/missing-gate-asks-first/services/billing/src/billing/reconcile.py",
+        "evals/files/missing-gate-asks-first/services/billing/src/billing/state.py",
+        "evals/files/missing-gate-asks-first/services/ledger/pyproject.toml",
+        "evals/files/missing-gate-asks-first/services/ledger/src/ledger/__init__.py"
+      ],
+      "expectations": [
+        "Reads the existing ruff config before measuring and states that the gate is missing: `max-complexity = 12` is set under `[tool.ruff.lint.mccabe]` but `C901` is not in `select`, so the threshold can never fire. Calling the existing setup a working gate, or 'already configured at 12', fails this.",
+        "Stops before the audit and asks whether to configure the complexity gate first. It does not present per-function scores, verdicts or a ranked list of functions to clean up in this turn.",
+        "Asks where the config should live in the same message as the configure question, not as a separate round trip.",
+        "Offers the candidates actually present in this repo - the root `pyproject.toml` (which already has `[tool.ruff]` and covers services/ledger too) and `services/billing/pyproject.toml` - rather than a generic list, and says which it would pick and why.",
+        "If it offers services/billing/pyproject.toml, warns that a `[tool.ruff]` section there replaces the root ruff settings for that package rather than merging with them, unless it uses `extend` pointing at the root config.",
+        "Says what a yes would do: add C901 (and a nesting rule) to the config, run ruff, and audit against real numbers; and what a no would do: audit as-is and report the missing gate with the config block.",
+        "Writes no files and edits no config in this turn: no pyproject.toml change, no complexity-report.html."
+      ],
+      "signals": {
+        "present": [
+          "C901",
+          "select",
+          "pyproject",
+          "services/billing",
+          "\\?"
+        ],
+        "absent": [
+          "complexity-report\\.html"
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "name": "subagent-proceeds-as-no",
+      "prompt": "You're running as a subagent for the nightly code-health job, and nobody will read questions until the morning summary, so don't wait on answers. Audit packages/checkout in this repo for complexity hot spots and report back what's worth acting on. The repo lints with oxlint.",
+      "expected_output": "An audit that proceeds without asking, says it treated the configure question as a no, and changes no config. It finds that .oxlintrc.json enables no complexity rules (a missing gate), measures with oxlint using rules passed outside the project, separates the flat cartReducer (expected, a dispatch switch) from quoteShipping (needs attention, nesting depth 7) despite both scoring 13, and proposes an .oxlintrc.json block with complexity plus oxlint's companion rules, noting that only cognitive complexity needs ESLint with SonarJS.",
+      "files": [
+        "evals/files/subagent-proceeds-as-no/.oxlintrc.json",
+        "evals/files/subagent-proceeds-as-no/package.json",
+        "evals/files/subagent-proceeds-as-no/packages/catalog/package.json",
+        "evals/files/subagent-proceeds-as-no/packages/catalog/src/index.ts",
+        "evals/files/subagent-proceeds-as-no/packages/checkout/package.json",
+        "evals/files/subagent-proceeds-as-no/packages/checkout/src/cart.ts",
+        "evals/files/subagent-proceeds-as-no/packages/checkout/src/index.ts",
+        "evals/files/subagent-proceeds-as-no/packages/checkout/src/shipping.ts"
+      ],
+      "expectations": [
+        "Does not stop to ask whether to configure the gate or where it should live. It proceeds and says plainly that, with nobody to ask, it treated the answer as no and left the config unchanged.",
+        "Leaves `.oxlintrc.json`, `package.json` and every source file unmodified. No `eslint-disable` or `oxlint-disable` comments are added.",
+        "Reports the gate as missing: `.oxlintrc.json` exists but enables no complexity rule, and oxlint's `complexity` rule is not on by default.",
+        "Measures with real numbers when oxlint is available (for example a temporary config or rule flags kept outside the project), and does not invent scores for metrics no tool produced.",
+        "Classifies `cartReducer` as expected - a flat dispatch switch, one case per action - and recommends `variant: \"modified\"` or a reasoned exemption rather than a refactor.",
+        "Classifies `quoteShipping` as the one needing attention because of nesting depth (around 7 levels), and notes that cyclomatic complexity alone scores it the same as the reducer (13 each), which is why one number cannot triage them.",
+        "Proposes an `.oxlintrc.json` block that sets `complexity` with an explicit `max` and includes oxlint's companion rules such as `max-depth`. Claiming that oxlint lacks `max-depth`, `max-params` or `max-lines-per-function`, or that ESLint is needed for them, fails this.",
+        "States that oxlint has no cognitive complexity rule, and that getting one means ESLint with eslint-plugin-sonarjs for that rule only.",
+        "If it writes complexity-report.html, writes it at packages/checkout/complexity-report.html, the root of the scanned scope, not at the repository root.",
+        "The reply carries the findings - each function that matters, a verdict, and the gate recommendation - so the calling job can use them without opening a file."
+      ],
+      "signals": {
+        "present": [
+          "quoteShipping",
+          "cartReducer",
+          "max-depth",
+          "oxlintrc",
+          "cognitive",
+          "modified"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 11,
+      "name": "configure-on-yes",
+      "prompt": "we've never had complexity linting on this service. go ahead and set it up in our pyproject.toml - yes you can edit files - then tell me what it finds. i want CI to go red on stuff that's actually bad, not on every function with a lot of cases in it.",
+      "expected_output": "The gate added to the existing pyproject.toml (C901 plus PLR1702 with preview and explicit-preview-rules, test ignores merged into the existing tests/** key), ruff run against it, `handle_command` exempted inline with `# noqa: C901` and a written reason as a flat dispatch, `allocate_stock` left failing and reported as needing attention, proof the gate fires, and a list of every file touched.",
+      "files": [
+        "evals/files/configure-on-yes/pyproject.toml",
+        "evals/files/configure-on-yes/src/orders/__init__.py",
+        "evals/files/configure-on-yes/src/orders/allocation.py",
+        "evals/files/configure-on-yes/src/orders/commands.py",
+        "evals/files/configure-on-yes/src/orders/service.py",
+        "evals/files/configure-on-yes/tests/test_commands.py"
+      ],
+      "expectations": [
+        "Adds the configuration to the existing `pyproject.toml` rather than creating a new `ruff.toml` or `.ruff.toml` beside it.",
+        "Enables `C901` through `select` or `extend-select` with an explicit `max-complexity`, and adds a nesting rule such as `PLR1702`.",
+        "If `PLR1702` is enabled, also sets `preview = true` and `explicit-preview-rules = true`, so the rule actually runs without switching on every other preview rule.",
+        "Merges any test-file ignores into the existing `\"tests/**\"` entry of `per-file-ignores` rather than adding a second key for the same files.",
+        "Runs ruff after configuring and reports the real results, including `handle_command` (C901 13) and `allocate_stock` (C901 11, nested 7 deep), when ruff is available.",
+        "Exempts `handle_command` with an inline `# noqa: C901` on its `def` line carrying a written reason (a flat dispatch, one case per command). A bare `# noqa`, a file-level `# ruff: noqa`, or a `per-file-ignores` entry for commands.py fails this.",
+        "Leaves `allocate_stock` failing with no exemption and reports it as needing attention because of its nesting, not its branch count. Exempting it to get a green run fails this.",
+        "Does not refactor `allocate_stock` or any other function; the user asked for the gate and the findings, not for code changes.",
+        "Confirms the gate actually fires, either by pointing to `allocate_stock` failing or with a throwaway probe that it removes afterwards, and checks that ruff did not print a 'has no effect' warning for a preview rule.",
+        "Lists every file it touched in the reply: pyproject.toml, src/orders/commands.py, and the report if one was written."
+      ],
+      "signals": {
+        "present": [
+          "C901",
+          "explicit-preview-rules",
+          "noqa: C901",
+          "allocate_stock",
+          "handle_command"
+        ],
+        "absent": [
+          "ruff: noqa"
         ]
       }
     }

@@ -1,7 +1,7 @@
 # JavaScript and TypeScript
 
 ESLint carries the whole family of complexity and size rules. oxlint implements the
-cyclomatic one at much higher speed. SonarJS supplies the readability metric neither
+same family at much higher speed. SonarJS supplies the readability metric neither
 core linter has.
 
 ## Contents
@@ -130,8 +130,9 @@ unchanged. Check the version in use before quoting rule behaviour.
 
 ## oxlint
 
-[oxlint](https://oxc.rs) implements the same rule as `eslint/complexity`, orders of
-magnitude faster, which makes it viable as a pre-commit gate where ESLint is not.
+[oxlint](https://oxc.rs) implements the same rules as ESLint's `complexity` and its
+companions, orders of magnitude faster, which makes it viable as a pre-commit gate
+where ESLint is not.
 
 ```json
 {
@@ -145,15 +146,17 @@ Same `max` default of **20** and the same `classic` / `modified` variants.
 
 Two things to know:
 
-- The rule sits in oxlint's **Restriction** category, which is not enabled by
-  default. It has to be turned on explicitly, like the ESLint original.
-- oxlint does not currently implement the companion rules (`max-depth`,
-  `max-lines-per-function`, and so on) or cognitive complexity. It covers the
-  cyclomatic gate only.
+- None of these rules is on by default; `complexity` sits in the **Restriction**
+  category. Each has to be turned on explicitly, like the ESLint originals.
+- oxlint implements the companion rules too: `max-depth`, `max-params`,
+  `max-lines-per-function`, `max-nested-callbacks` and `max-statements`, with the
+  same options (checked against oxlint 1.86). What it lacks is **cognitive
+  complexity**. There is no SonarJS equivalent.
 
-A reasonable split is oxlint for the fast pre-commit cyclomatic check and ESLint plus
-SonarJS in CI for the full picture. Keep the `max` values identical between them, or
-the two gates disagree about the same code.
+So the split is by metric, not by speed. oxlint can carry every rule except cognitive
+complexity; add ESLint with SonarJS only for that one rule. If a project runs both,
+keep shared rules in one of them, or keep their `max` values identical, so the two
+gates do not disagree about the same code.
 
 ## Recommended config
 
@@ -189,6 +192,35 @@ Two deliberate choices worth copying: cognitive complexity is an **error** while
 size rules are **warnings**, because the former is the readability signal and the
 latter are prompts; and `max-nested-callbacks` is tightened from 10 to 4, since the
 default effectively never fires in code that uses `async`/`await`.
+
+For a project on oxlint, the same gate minus cognitive complexity goes in
+`.oxlintrc.json`. Nesting depth becomes the readability signal there, so say in the
+reply that cognitive complexity is missing and that adding it means ESLint with
+SonarJS for that one rule.
+
+```json
+{
+  "rules": {
+    "complexity": ["error", { "max": 15, "variant": "modified" }],
+    "max-depth": ["error", 4],
+    "max-lines-per-function": ["warn", { "max": 80, "skipBlankLines": true, "skipComments": true }],
+    "max-params": ["warn", 4],
+    "max-nested-callbacks": ["warn", 4]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.spec.ts"],
+      "rules": {
+        "max-lines-per-function": "off",
+        "max-nested-callbacks": "off"
+      }
+    }
+  ]
+}
+```
+
+`max-depth` is an error here rather than a warning because, without cognitive
+complexity, it is the only rule pointing at nesting.
 
 ## Exemptions
 
