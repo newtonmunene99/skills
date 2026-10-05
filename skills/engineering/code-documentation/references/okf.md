@@ -34,7 +34,9 @@ So: **when it is not clear whether OKF documents are wanted, ask.**
 
 Proceed without asking only when the intent is unmistakable:
 
-- The user named the format — "OKF", "knowledge bundle", "concept doc".
+- The user named the format — "OKF", "knowledge bundle", "concept doc". In an
+  audit request, naming OKF only licenses checking the bundles that exist; creating
+  one, and choosing its level (service, repo, monorepo), still takes a question.
 - The repository already contains a bundle (a directory of `.md` files with `type:`
   frontmatter, usually alongside an `index.md`) **and** the request is plainly about
   extending it.

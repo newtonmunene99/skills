@@ -47,6 +47,11 @@ both code and a bundle, or when nothing OKF-shaped exists yet and the user has n
 named the format. Keep it to one question with the concrete options as a short list,
 then proceed on the answer.
 
+**OKF in an audit request licenses checking, not creating.** Audit the bundles that
+exist. Creating one, and choosing its level (service, repo, monorepo), takes that one
+question first. Don't sweep the repo for OKF material or read the OKF reference until
+a bundle exists or creation is confirmed.
+
 ## Workflow
 
 1. **Detect the existing style.** Match what the project already does when it is
@@ -54,7 +59,11 @@ then proceed on the answer.
    style before making sweeping changes rather than silently picking one.
 2. **Find what is actually missing**, not everything that *could* be documented.
    Self-evident code does not need a comment; adding one costs a reader attention
-   and returns nothing.
+   and returns nothing. Build the inventory mechanically (AST, a `buf build`
+   descriptor set, `go doc -all`, the TS compiler's list of exported declarations)
+   before calling a file or module complete; never report "already documented" from
+   a skim. Exclude generated and vendored code (generator headers, `vendor/`,
+   `third_party/`, scaffolded packages) from inventory and edits, and say so.
 3. **Leave acceptable documentation alone.** If a symbol already covers the why,
    the errors, and the edge cases at reasonable depth, do not reformat or rewrite
    it to match a style preference. This is the rule most worth holding on to: a
@@ -68,9 +77,16 @@ then proceed on the answer.
    files that changed and their immediate package or module context (the package's
    `doc.go`, the nearest `README.md`). Sweep the whole repo only when asked for an
    audit.
-6. **Report what changed** in the response: files touched, what was added, and any
+6. **Verify behavior is unchanged.** For proto, diff `buf build
+   --exclude-source-info -o` output before and after; for Go and TS, diff
+   comment-stripped token streams. Then run build, vet and tests. gofmt or prettier
+   re-aligning a grouped declaration is expected, not a code change.
+7. **Report what changed** in the response: files touched, what was added, and any
    judgment calls made — the docstring style chosen when the project was ambiguous,
-   for instance. That belongs in the reply, never spliced into source files.
+   for instance. That belongs in the reply, never spliced into source files. When
+   committing, make one commit per kind of change: wrong comments fixed, new docs,
+   package docs (`doc.go`), trailing-to-leading moves, READMEs. Any non-documentation
+   change the user asked for (lint config, `go_package`, imports) gets its own commit.
 
 ## When to Read Which Reference
 
@@ -83,7 +99,8 @@ then proceed on the answer.
   link rather than inline** → Read [references/readmes.md](references/readmes.md)
 - **OKF knowledge documents — bundle layout and reserved filenames, concept
   frontmatter, provenance/trust/lifecycle fields, cross-linking, `index.md` and
-  `log.md`, Attested Computation** → Read [references/okf.md](references/okf.md)
+  `log.md`, Attested Computation** → Read [references/okf.md](references/okf.md),
+  once a bundle exists or creation is confirmed
 
 ## Quick Cues
 
@@ -114,6 +131,10 @@ then proceed on the answer.
 
 - **Refactoring, renaming, or changing behavior** during a documentation pass.
 - **Adding tests, CI config, or build files.** Not documentation.
+- **Making missing documentation a CI failure** (buf lint `COMMENTS`, revive
+  `exported`, eslint `jsdoc/require-jsdoc`) unless the user asked for it. Coverage
+  is a review goal, not a merge gate. Asked to enable linting, enable it without the
+  comment-coverage rules and offer them separately.
 - **Marketing copy, blog posts, or release notes.** Not documentation either.
 - **Speculative docs** for code that does not exist yet.
 - **Writing CHANGELOG entries.** Authors describe their own changes; link to
