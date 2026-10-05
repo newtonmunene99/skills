@@ -45,11 +45,12 @@ Supported agents include **Cursor**, **Codex**, **Claude Code**, **OpenCode**,
 - **SKILL.md** — review modes, the signal bar, reference routing, and constraints
 - **references/scope-resolution.md** — git command tables for every scope, relative
   and filtered history, resolving "me", two-dot vs three-dot diffs
-- **references/merge-review.md** — the 7-step merge workflow, platform CLI table,
+- **references/merge-review.md** — the merge workflow (steps 0-7), platform CLI table,
   comment posting and inline suggestions
 - **references/reporting.md** — review checklist, output templates, verdicts
 - **agents/openai.yaml** — optional Codex/Copilot display metadata (not read by the model)
-- **evals/** — 3 eval prompts with expectations, and the harness to run them
+- **evals/** — 7 eval prompts with expectations, two fixture repos, and the harness
+  to run them
 
 ## License
 

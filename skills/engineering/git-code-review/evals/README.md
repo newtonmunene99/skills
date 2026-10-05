@@ -10,32 +10,43 @@ the skill and once without, so the benchmark shows the delta rather than an
 absolute score. An expectation that passes in both columns isn't measuring the
 skill; it's measuring the model. Those are worth rewriting.
 
-> These three prompts are written but have not been run yet. There is no
-> `iteration-1/` until someone does step 1 below.
+> **Iteration 1 (2026-08-27, evals 1-3, 3 runs each) did not discriminate:** 100%
+> pass rate with and without the skill, at +5.7k tokens for the skill. Several
+> signals matched words the prompt itself supplied, and the baselines held back on
+> the eval 1 decoys as well as the skill did. Evals 4-7 and the reworked signals
+> target what a baseline does not do on its own; iteration 2 has not been run yet.
 
 ## Files
 
 | File | Purpose |
 | ---- | ------- |
-| `evals.json` | The 3 eval prompts and their expectations (what the grader checks) |
-| `prepare_workspace.py` | Builds the workspace directory layout and `eval_metadata.json` from `evals.json` |
+| `evals.json` | The 7 eval prompts and their expectations (what the grader checks) |
+| `prepare_workspace.py` | Builds the workspace directory layout and `eval_metadata.json` from `evals.json`, and a git repo per run for evals with a fixture |
+| `files/<eval-name>/` | Fixture repos as plain files: `base/` is committed on `main`, `change/` is laid on top |
 | `run_benchmark.sh` | Aggregates grading results and opens the review viewer |
 
-## What the three prompts target
+## What the prompts target
 
 | id | name | The thing a bare model gets wrong |
 | -- | ---- | --------------------------------- |
-| 1 | `merge-review-high-signal` | **Restraint.** The diff carries one real data race and four decoys. Baselines find the race *and* report the gofmt spacing, the C-style loop and the short names |
+| 1 | `merge-review-high-signal` | **Restraint.** The diff carries one real data race and four decoys. Iteration 1 baselines resisted the decoys too, so the discriminating checks are now the template ones: the `Base → Head` line and the `**Verdict:**` line |
 | 2 | `no-github-fallback` | Self-hosted GitLab, no `glab`, can't install it. Baselines stall or reach for `gh` instead of falling back to `git diff` |
 | 3 | `scope-resolution-author-and-time` | "Everything i've pushed this week." Baselines ask who you are instead of reading `git config user.email` |
+| 4 | `working-tree-confirmed-trap` | Uncommitted Go change with a real map race and a loop-variable capture that is correct under `go 1.22`. Baselines flag the capture, skip the exact working-tree headings, and invent a verdict |
+| 5 | `go-dependency-bump` | Vendored bump breaks an untouched file. Baselines either miss it (it is not in the diff) or bury it under gofmt, vet, a pre-existing ignored error and the stale `go.sum` |
+| 6 | `comment-request-no-cli` | "Drop your comments on the PR" on Gitea with no CLI or token. Baselines script `curl` against the API or ask for a token instead of handing back paste-ready comments |
+| 7 | `clean-merge-approve` | Nothing to flag. Baselines pad with optional suggestions and answer "Approve with nits", which a merge review never uses |
 
-Eval 1 is the load-bearing one, and it is scored as much on what is **absent** as
-on what is present. Half its expectations are negative — does NOT flag the spacing,
+Evals 1, 4, 5 and 7 are scored as much on what is **absent** as
+on what is present. In eval 1, half the expectations are negative — does NOT flag the spacing,
 does NOT flag the loop style, does NOT flag the unchanged `LegacyTotal`. Finding the
 race is the easy half; a review that finds the race and buries it under four nits
 has still failed the high-signal bar. The `absent` signals check the structural half
 of the same thing: a merge review must use the merge template, so `### Suggestions`
-appearing at all means the wrong output format was used.
+appearing at all means the wrong output format was used. Evals 4-7 add the
+decoys iteration 1 lacked: a correct line that looks like a classic bug (eval 4),
+tool output and drift that are not findings (eval 5), and a clean diff where the
+right answer is a bare Approve (eval 7).
 
 The diff also plants a pre-existing-code trap. `LegacyTotal` shows up in the diff
 only because the new `Total` signature forced a mechanical call-site update, so
@@ -67,6 +78,7 @@ git-code-review-workspace/
     │   ├── eval_metadata.json    # prompt + expectations, from evals.json
     │   ├── with_skill/run-1/
     │   │   ├── outputs/          # the agent writes here
+    │   │   ├── repo/             # evals 4-5 only: the fixture repo to run in
     │   │   ├── grading.json      # the grader writes here
     │   │   └── timing.json       # tokens + duration, from the run notification
     │   └── without_skill/run-1/  # same prompt, no skill — the baseline
@@ -97,10 +109,12 @@ with-skill and baseline runs in the same batch so they finish together.
 Save `timing.json` (`total_tokens`, `duration_ms`) when each run completes —
 that data arrives in the run notification and isn't recoverable afterwards.
 
-All three prompts carry their input inline — the diff, the log, the situation —
-so the runs need no fixture repository and no network. That keeps them
-reproducible, at the cost of not exercising the actual `git` invocations. Evals 2
-and 3 therefore grade the *approach and commands*, not a finished review.
+Evals 1-3, 6 and 7 carry their input inline — the diff, the log, the situation —
+so they need no repository and no network. Evals 2 and 3 therefore grade the
+*approach and commands*, not a finished review. Evals 4 and 5 run against a real
+repo that `prepare_workspace.py` builds at `<config>/run-1/repo/`; start those runs
+in that directory. Eval 5's dependency is vendored, so `go build ./...` works
+offline and fails in `internal/fx/convert.go`.
 
 ### 3. Grade
 

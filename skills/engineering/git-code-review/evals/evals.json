@@ -11,7 +11,7 @@
         "Flags that Cache.Get calls delete(c.items, key) while holding only a read lock (RLock), which is a concurrent map write and a data race - it needs the full Lock. This is the one genuinely blocking defect in the diff.",
         "The finding cites the file and an approximate line, in the form internal/cache/cache.go:<line>, rather than describing the problem in the abstract.",
         "The review uses the merge-review output template: a header line carrying the base and head refs and the commit count, a short summary, and an Issues list.",
-        "The verdict is Request changes, since a data race is a Critical finding.",
+        "The report ends with a `**Verdict:** Request changes` line - a data race blocks the merge, and a merge review uses only Approve or Request changes.",
         "Does NOT flag the spacing in `func Total( items []LineItem, discountPct int )`. gofmt catches it, and linter-catchable findings are explicitly out of scope for a merge review.",
         "Does NOT flag the C-style `for i := 0; i < len(items); i++` loop as needing to be a range loop. That is a pedantic nitpick a senior engineer would skip.",
         "Does NOT flag the short variable names `e`, `r` and `c` as needing to be longer. Style not codified in a project guideline is out of scope.",
@@ -20,16 +20,17 @@
       ],
       "signals": {
         "present": [
-          "RLock|read lock",
-          "delete",
+          "read lock|(only|holds|holding|under)( an?| the)? RLock",
           "race|concurrent map write|concurrent write",
-          "cache\\.go",
-          "Request changes",
-          "main|Base:"
+          "mu\\.Lock\\(\\)|full (write )?lock|write lock",
+          "cache\\.go:\\d+",
+          "\\*\\*Verdict:\\*\\* Request changes",
+          "Base: \\S+ (→|->) Head:"
         ],
         "absent": [
           "### Suggestions",
-          "### Positive notes"
+          "### Positive notes",
+          "Approve with nits"
         ]
       }
     },
@@ -52,11 +53,10 @@
       "signals": {
         "present": [
           "git diff",
-          "\\.\\.\\.",
           "git fetch",
           "git log",
           "symbolic-ref|origin/HEAD|default branch|base branch",
-          "feat/webhook-retries"
+          "\\.\\.\\.(origin/)?feat/webhook-retries|merge-requests/284/head"
         ],
         "absent": [
           "gh pr "
@@ -87,6 +87,143 @@
           "git log"
         ],
         "absent": []
+      }
+    },
+    {
+      "id": 4,
+      "name": "working-tree-confirmed-trap",
+      "prompt": "can you sanity-check what i've got before i push? made the thumbnail jobs run in parallel instead of one at a time, change is in internal/jobs/runner.go, not committed yet",
+      "expected_output": "A working-tree review in the full template that flags the concurrent writes to the results map as Critical with file:line and a fix, treats the per-iteration capture of j as correct (go.mod says go 1.22) and mentions it, if at all, under Positive notes, and ends with **Verdict:** Request changes.",
+      "files": [
+        "evals/files/working-tree-confirmed-trap/base/go.mod",
+        "evals/files/working-tree-confirmed-trap/base/internal/jobs/runner.go",
+        "evals/files/working-tree-confirmed-trap/change/internal/jobs/runner.go"
+      ],
+      "expectations": [
+        "Reviews the uncommitted working-tree change in the repo (git status / git diff), not a commit or a branch comparison.",
+        "Flags that the goroutines write to the shared `results` map without synchronisation - concurrent map writes, which crash the program with a fatal error - as a Critical finding, citing internal/jobs/runner.go:<line>.",
+        "Gives a concrete fix for the map race: a sync.Mutex around the write, a pre-sized slice indexed by position, or a results channel.",
+        "Does NOT report the closure capturing the loop variable `j` as a bug or recommend `j := j`. go.mod declares go 1.22, where each iteration has its own `j`, so the capture is correct.",
+        "If the loop-variable capture is mentioned at all, it appears under a `### Positive notes` heading as a confirmation, not as a numbered or bulleted finding under Critical, Warnings or Suggestions.",
+        "Uses the working-tree template's exact headings, including `### Summary` and `### Critical (must fix)`, and drops any heading with nothing under it.",
+        "The last line of the report is `**Verdict:** Request changes`, not an invented verdict such as 'Not ready to push' or 'Needs work'."
+      ],
+      "signals": {
+        "present": [
+          "### Summary",
+          "### Critical \\(must fix\\)",
+          "runner\\.go:\\d+",
+          "concurrent map|map writes?|data race",
+          "Mutex|channel|slice",
+          "\\*\\*Verdict:\\*\\* Request changes"
+        ],
+        "absent": [
+          "### Issues",
+          "Approve with nits"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "name": "go-dependency-bump",
+      "prompt": "bumped github.com/acme/money to v1.5.0 on deps/money-1.5 so we get the error-returning Round, and updated the invoice code for it. is it good to merge into main? repo's vendored, no network on this box",
+      "expected_output": "A merge review that runs the build once, reports the compile break in the untouched internal/fx/convert.go caused by the bump as this change's issue, uses the merge template with Base: main -> Head: deps/money-1.5, ends with **Verdict:** Request changes, and does not report gofmt spacing, vet output, the pre-existing ignored ParseFloat error, or the stale go.sum as standalone findings.",
+      "files": [
+        "evals/files/go-dependency-bump/base/go.mod",
+        "evals/files/go-dependency-bump/base/go.sum",
+        "evals/files/go-dependency-bump/base/internal/fx/convert.go",
+        "evals/files/go-dependency-bump/base/internal/invoice/total.go",
+        "evals/files/go-dependency-bump/base/vendor/github.com/acme/money/money.go",
+        "evals/files/go-dependency-bump/base/vendor/modules.txt",
+        "evals/files/go-dependency-bump/change/go.mod",
+        "evals/files/go-dependency-bump/change/internal/invoice/total.go",
+        "evals/files/go-dependency-bump/change/vendor/github.com/acme/money/money.go",
+        "evals/files/go-dependency-bump/change/vendor/modules.txt"
+      ],
+      "fixture_branch": "deps/money-1.5",
+      "fixture_commit_message": "deps: bump acme/money to v1.5.0",
+      "expectations": [
+        "Reports that the bump breaks the build in internal/fx/convert.go:14 - money.Round now returns (Cents, error) and Convert still returns a single value - and quotes or paraphrases the compiler error ('too many return values').",
+        "Treats the convert.go break as this change's issue even though convert.go is not in the diff, because the dependency bump caused it.",
+        "States that the break was confirmed with a build or typecheck (e.g. `go build ./...`), rather than inferred from reading the diff alone.",
+        "Does NOT report go vet, staticcheck, golangci-lint or gofmt output, and does NOT flag the `money.Round( sum, money.HalfEven )` spacing in total.go.",
+        "Does NOT report the stale go.sum (still listing v1.4.0) as its own numbered issue. Mentioning it inside the fix for the build break is fine.",
+        "Does NOT flag the ignored error from strconv.ParseFloat in convert.go. That line is pre-existing and untouched by the change.",
+        "Uses the merge-review template: a `Base: main → Head: deps/money-1.5` line with the commit count, and an Issues list with file:line entries.",
+        "The last line of the report is `**Verdict:** Request changes`."
+      ],
+      "signals": {
+        "present": [
+          "convert\\.go:\\d+",
+          "too many return values",
+          "go build",
+          "Base: \\S+ (→|->) Head:",
+          "\\*\\*Verdict:\\*\\* Request changes"
+        ],
+        "absent": [
+          "staticcheck",
+          "golangci",
+          "### Suggestions",
+          "Approve with nits"
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "name": "comment-request-no-cli",
+      "prompt": "review PR #57 on our gitea (git.lab.internal) and drop your comments on it for me. there's no tea cli on this machine and i don't have an api token handy. here's what's in it:\n\n```\n$ git log --oneline main..feat/orders-since\n5e1d0c7 reports: filter order export by date\n```\n\n```diff\ndiff --git a/app/reports/export.py b/app/reports/export.py\nindex 2b7f10a..8d41c3e 100644\n--- a/app/reports/export.py\n+++ b/app/reports/export.py\n@@ -1,18 +1,22 @@\n import csv\n import io\n+from datetime import date\n\n from app.db import get_conn\n\n\n-def export_orders(customer_id: int) -> str:\n-    rows = get_conn().execute(\n-        \"SELECT id, total_cents, created_at FROM orders WHERE customer_id = ?\",\n-        (customer_id,),\n-    ).fetchall()\n+def export_orders(customer_id: int, since: str | None = None) -> str:\n+    query = \"SELECT id, total_cents, created_at FROM orders WHERE customer_id = ?\"\n+    params = [customer_id]\n+    if since:\n+        query += f\" AND created_at >= '{since}'\"\n+    rows = get_conn().execute(query, params).fetchall()\n     buf = io.StringIO()\n     w = csv.writer(buf)\n     w.writerow([\"id\", \"total\", \"created\"])\n     for r in rows:\n-        w.writerow([r[0], r[1] / 100, r[2]])\n+        w.writerow([r[0], f\"{r[1] / 100:.2f}\", r[2]])\n     return buf.getvalue()\ndiff --git a/app/routes/reports.py b/app/routes/reports.py\nindex 91c0e2d..a7f3b58 100644\n--- a/app/routes/reports.py\n+++ b/app/routes/reports.py\n@@ -9,4 +9,4 @@ bp = Blueprint(\"reports\", __name__)\n @bp.get(\"/customers/<int:customer_id>/orders.csv\")\n def orders_csv(customer_id: int):\n-    return Response(export_orders(customer_id), mimetype=\"text/csv\")\n+    return Response(export_orders(customer_id, request.args.get(\"since\")), mimetype=\"text/csv\")\n```",
+      "expected_output": "Does the review anyway and, because no CLI is available, delivers it in chat: the merge template with the SQL injection in export.py as the one issue, each finding as file:line with comment text ready to paste into Gitea, and **Verdict:** Request changes. Does not guess at the Gitea API, ask for a token, or tell the user to install tea.",
+      "files": [],
+      "expectations": [
+        "Flags the SQL injection: `since` comes from request.args and is interpolated into the query with an f-string instead of being bound as a parameter. Cites app/reports/export.py:<line> and gives the parameterised fix (`AND created_at >= ?` with `since` appended to params).",
+        "Delivers the review in chat because no platform CLI is available, and says the user will need to post it - it does not claim to have posted anything.",
+        "Gives each finding as file:line plus comment text the user can paste into the PR as an inline comment.",
+        "Does NOT construct curl or HTTP calls against the Gitea API, and does not ask the user to find or create an API token.",
+        "Does NOT tell the user to install the tea CLI or any other tool.",
+        "Does NOT flag the unused `from datetime import date` import, the short names `w` and `r`, or the long line in reports.py. A linter catches the first, and the rest are uncodified style.",
+        "Uses the merge-review template with a `Base: main → Head: feat/orders-since` line and ends with `**Verdict:** Request changes`."
+      ],
+      "signals": {
+        "present": [
+          "injection",
+          "export\\.py:\\d+",
+          "created_at >= \\?",
+          "Base: \\S+ (→|->) Head:",
+          "\\*\\*Verdict:\\*\\* Request changes"
+        ],
+        "absent": [
+          "curl ",
+          "/api/v1/",
+          "install tea",
+          "brew install",
+          "### Suggestions"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "name": "clean-merge-approve",
+      "prompt": "is fix/webhook-backoff ready to merge into main? swapped the fixed 1s retry sleep for proper backoff\n\n```\n$ git log --oneline main..fix/webhook-backoff\nb2c94e1 webhooks: exponential backoff with full jitter\n```\n\n```diff\ndiff --git a/webhooks/deliver.py b/webhooks/deliver.py\nindex 4c1e8a2..e07b9d5 100644\n--- a/webhooks/deliver.py\n+++ b/webhooks/deliver.py\n@@ -1,20 +1,27 @@\n+import random\n import time\n\n from webhooks.client import Response, TransientError, send\n\n MAX_ATTEMPTS = 5\n\n\n+def backoff_delay(attempt: int, base: float = 0.5, cap: float = 30.0) -> float:\n+    \"\"\"Full-jitter exponential backoff, in seconds.\"\"\"\n+    return random.uniform(0, min(cap, base * 2 ** attempt))\n+\n+\n def deliver(payload: dict) -> Response:\n     for attempt in range(MAX_ATTEMPTS):\n         try:\n             return send(payload)\n         except TransientError:\n             if attempt == MAX_ATTEMPTS - 1:\n                 raise\n-            time.sleep(1)\n+            time.sleep(backoff_delay(attempt))\ndiff --git a/tests/test_deliver.py b/tests/test_deliver.py\nindex 7a0d3f1..c58e2b4 100644\n--- a/tests/test_deliver.py\n+++ b/tests/test_deliver.py\n@@ -1,5 +1,17 @@\n+import random\n+\n+from webhooks.deliver import backoff_delay\n+\n+\n+def test_backoff_delay_is_capped_and_non_negative():\n+    random.seed(7)\n+    for attempt in range(12):\n+        d = backoff_delay(attempt)\n+        assert 0 <= d <= min(30.0, 0.5 * 2 ** attempt)\n+\n+\n def test_deliver_returns_first_success(fake_send):\n```",
+      "expected_output": "A merge review that finds nothing blocking and says so with the no-issues template and **Verdict:** Approve - not 'Approve with nits', not a list of optional suggestions about random vs secrets, docstrings, or extra tests.",
+      "files": [],
+      "expectations": [
+        "Concludes that nothing in the diff blocks the merge. For the grader: the delay is bounded by `cap`, the last attempt re-raises without sleeping, and `attempt` never exceeds MAX_ATTEMPTS - 1, so any claimed bug along those lines is a false positive.",
+        "Uses the no-issues form of the merge template ('No issues found. Checked for bugs and project guideline compliance.') or an equivalently empty Issues section.",
+        "The verdict line is `**Verdict:** Approve`. A merge review does not use 'Approve with nits', because its bar already excludes nits.",
+        "Does NOT suggest replacing `random` with `secrets` or SystemRandom. Jitter needs no cryptographic randomness, and a security linter is what would raise it.",
+        "Does NOT list optional suggestions - more tests, renaming `d`, a longer docstring, making base and cap configurable - under the review. Those are below the merge-review bar."
+      ],
+      "signals": {
+        "present": [
+          "No issues found",
+          "\\*\\*Verdict:\\*\\* Approve\\b"
+        ],
+        "absent": [
+          "Approve with nits",
+          "secrets\\.|SystemRandom",
+          "### Suggestions",
+          "Request changes"
+        ]
       }
     }
   ]
