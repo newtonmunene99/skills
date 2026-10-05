@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package acme.jobs.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/resource.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/acme/platform/gen/go/acme/jobs/v1;jobspb";
+
+// Runs container jobs on a schedule.
+service JobService {
+  // Gets a job.
+  rpc GetJob(GetJobRequest) returns (Job) {
+    option (google.api.http) = {
+      get: "/v1/{name=projects/*/jobs/*}"
+    };
+    option (google.api.method_signature) = "name";
+  }
+}
+
+// A container image that runs on a cron schedule.
+message Job {
+  option (google.api.resource) = {
+    type: "jobs.acme.dev/Job"
+    pattern: "projects/{project}/jobs/{job}"
+  };
+
+  reserved 5;
+  reserved "timeout_seconds";
+
+  // The resource name of the job.
+  // Format: projects/{project}/jobs/{job}
+  string name = 1;
+
+  // The human-readable name of the job.
+  string display_name = 2;
+
+  // The cron expression the job runs on, in UTC.
+  string schedule = 3;
+
+  // The container image to run, including its tag or digest.
+  string image = 4;
+
+  // When the job stops being scheduled. Empty means it never expires.
+  google.protobuf.Timestamp expiry_time = 6;
+
+  // A checksum of the job, used for optimistic concurrency.
+  string etag = 97;
+
+  // When the job was created.
+  google.protobuf.Timestamp create_time = 98;
+
+  // When the job was last updated.
+  google.protobuf.Timestamp update_time = 99;
+}
+
+// Request message for `GetJob`.
+message GetJobRequest {
+  // The name of the job to get.
+  // Format: projects/{project}/jobs/{job}
+  string name = 1;
+}

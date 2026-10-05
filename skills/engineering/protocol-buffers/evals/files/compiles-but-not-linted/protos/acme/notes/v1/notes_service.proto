@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package acme.notes.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+option go_package = "github.com/acme/platform/gen/go/acme/notes/v1;notespb";
+
+// Stores short notes for users.
+service NotesService {
+  // Creates a note.
+  rpc CreateNote(CreateNoteRequest) returns (Note) {
+    option (google.api.http) = {
+      post: "/v1/{parent=users/*}/notes"
+      body: "note"
+    };
+    option (google.api.method_signature) = "parent,note";
+  }
+
+  rpc GetNote(GetNoteRequest) returns (Note) {
+    option (google.api.http) = {
+      get: "/v1/{name=users/*/notes/*}"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a user's notes.
+  rpc ListNotes(ListNotesRequest) returns (ListNotesResponse) {
+    option (google.api.http) = {
+      get: "/v1/{parent=users/*}/notes"
+    };
+    option (google.api.method_signature) = "parent";
+  }
+}
+
+// A short note.
+message Note {
+  option (google.api.resource) = {
+    type: "notes.acme.dev/Note"
+    pattern: "users/{user}/notes/{note}"
+    singular: "note"
+    plural: "notes"
+  };
+
+  string name = 1 [(google.api.field_behavior) = REQUIRED]; // users/{user}/notes/{note}
+
+  // The note's text.
+  string body = 2;
+
+  // Whether the note is pinned to the top of the list.
+  bool is_pinned = 3;
+
+  // When the note was created.
+  google.protobuf.Timestamp create_time = 4;
+}
+
+// Request message for `CreateNote`.
+message CreateNoteRequest {
+  // The user to create the note for.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = { child_type: "notes.acme.dev/Note" }
+  ];
+
+  // The note to create.
+  Note note = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Request message for `GetNote`.
+message GetNoteRequest {
+  // The name of the note.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = { type: "notes.acme.dev/Note" }
+  ];
+}
+
+// Request message for `ListNotes`.
+message ListNotesRequest {
+  // The user whose notes to list.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = { child_type: "notes.acme.dev/Note" }
+  ];
+
+  // The maximum number of notes to return.
+  int32 page_size = 2;
+
+  // The page token from a previous call.
+  string page_token = 3;
+}
+
+// Response message for `ListNotes`.
+message ListNotesResponse {
+  // The notes.
+  repeated Note notes = 1;
+
+  // The token for the next page.
+  string next_page_token = 2;
+}

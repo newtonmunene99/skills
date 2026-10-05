@@ -37,7 +37,7 @@ Supported agents include **Cursor**, **Codex**, **Claude Code**, **OpenCode**, *
 - **references/aip/full-example.md** — Full minimal CRUD proto example
 - **references/aip/naming-and-methods.md** — Naming conventions and standard methods tables
 - **agents/openai.yaml** — optional Codex/Copilot display metadata (not read by the model)
-- **evals/** — 3 eval prompts with expectations, and the harness to run them
+- **evals/** — 6 eval prompts with expectations, fixture protos, and the harness to run them
 
 ## License
 
