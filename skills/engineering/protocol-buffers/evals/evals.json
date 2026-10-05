@@ -17,7 +17,10 @@
         "The name field is annotated (google.api.field_behavior) = IDENTIFIER — not REQUIRED, which is the common mistake — and the message carries a google.api.resource option declaring its pattern and type.",
         "The parent field carries a google.api.resource_reference with child_type (or type) rather than being an unannotated string.",
         "create_time and update_time are present and annotated OUTPUT_ONLY, and any enum's zero value is named *_UNSPECIFIED.",
-        "The proto package ends in a major version (e.g. acme.advertising.v1) rather than being unversioned."
+        "The proto package ends in a major version (e.g. acme.advertising.v1) rather than being unversioned.",
+        "Every import the file needs is present, in alphabetical order: google/api/client.proto whenever method_signature is used and google/protobuf/empty.proto whenever Delete returns Empty. The old worked example omitted client.proto and with-skill answers copied the gap.",
+        "Every request field carries a field_behavior, including page_size and page_token (OPTIONAL), update_mask (OPTIONAL) and the user-settable fields of Campaign, since the resource is sent in Create and Update.",
+        "The answer validates with api-linter (runs it, or says it is not installed and gives the go install command) rather than presenting a compile, or nothing, as validation."
       ],
       "signals": {
         "present": [
@@ -31,7 +34,10 @@
           "OUTPUT_ONLY",
           "_UNSPECIFIED",
           "body:\\s*\\\"campaign\\\"",
-          "package\\s+[\\w.]+\\.v\\d"
+          "package\\s+[\\w.]+\\.v\\d",
+          "google/api/client\\.proto",
+          "update_mask\\s*=\\s*\\d+\\s*\\[[^\\]]*OPTIONAL",
+          "api-linter"
         ],
         "absent": []
       }
@@ -49,7 +55,8 @@
         "The response declares google.longrunning.operation_info with both response_type and metadata_type.",
         "A metadata message is actually defined (not just named) carrying progress information such as create_time, end_time, or a percent/stage field.",
         "The archival lifecycle is modelled on the resource itself — an OUTPUT_ONLY state or lifecycle enum — so clients can observe the result, rather than the RPC being the only expression of it.",
-        "The response explains why this is a custom method rather than a standard one (the behaviour doesn't map onto Get/List/Create/Update/Delete) and, if it discusses alternatives, says why Update-with-state or soft-delete were rejected."
+        "The response explains why this is a custom method rather than a standard one (the behaviour doesn't map onto Get/List/Create/Update/Delete) and, if it discusses alternatives, says why Update-with-state or soft-delete were rejected.",
+        "Any proto it writes imports google/api/client.proto when it uses method_signature and google/longrunning/operations.proto for Operation, and it validates with api-linter (or names the install command) rather than stopping at a compile."
       ],
       "signals": {
         "present": [
@@ -60,7 +67,10 @@
           "metadata_type",
           "message\\s+ArchiveCampaignMetadata|Metadata\\s*\\{",
           "OUTPUT_ONLY",
-          "resource_reference"
+          "resource_reference",
+          "google/api/client\\.proto",
+          "google/longrunning/operations\\.proto",
+          "api-linter"
         ],
         "absent": []
       }
@@ -94,6 +104,97 @@
           "google\\.api\\.http",
           "field_behavior|google\\.api\\.resource",
           "is_deleted"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 4,
+      "name": "extend-existing-message",
+      "prompt": "Can you add two fields to the Job message in protos/acme/jobs/v1/jobs.proto? max_retries — how many times we retry a failed run. 0 means never retry, and if it's not set at all we fall back to the project default of 3. And owned_by_team, the team that owns the job (just the team slug for now). Keep it consistent with the rest of the file please, other teams generate clients from this.",
+      "expected_output": "Job gains max_retries and a preposition-free owning team field on the next free numbers (7 and 8), max_retries uses proto3 optional, the reply lists each place the new fields differ from the file's convention and asks which to follow, says the change is non-breaking, and validates with api-linter reporting only findings on the changed lines.",
+      "files": [
+        "evals/files/extend-existing-message/buf.yaml",
+        "evals/files/extend-existing-message/protos/acme/jobs/v1/jobs.proto"
+      ],
+      "expectations": [
+        "The new fields take numbers 7 and 8: not 5, which is reserved, and not 100 or above after the 97-99 block. The reply shows it read the reserved range rather than guessing.",
+        "max_retries is declared `optional int32 max_retries`, because 0 (never retry) and unset (use the default of 3) mean different things. A plain int32 or a google.protobuf.Int32Value wrapper fails this.",
+        "The owner field drops the preposition, e.g. owning_team or team, and the reply says why it differs from the requested owned_by_team.",
+        "It does not rename expiry_time to expire_time or otherwise touch existing fields, because that would break generated clients; it may point out the expiry_time deviation as a note.",
+        "The reply lists each place the new code departs from the file's existing convention (for example the field name, any field_behavior added where the file has none) one line each, and asks whether the user wants the repo's convention instead, rather than silently picking one.",
+        "The reply states that adding the two fields is a non-breaking change.",
+        "It validates with api-linter (runs it with -I for the googleapis imports, or says it is not installed and gives the go install command) and reports only findings on the lines it changed, not the dozen pre-existing ones. A buf build or protoc compile alone does not pass."
+      ],
+      "signals": {
+        "present": [
+          "optional\\s+int32\\s+max_retries",
+          "owning_team|\\bteam\\s*=\\s*\\d",
+          "max_retries\\s*=\\s*7|=\\s*7\\s*;",
+          "non-breaking|not a breaking|isn't a breaking|backward[s]?[- ]compatible",
+          "api-linter"
+        ],
+        "absent": [
+          "owned_by_team\\s*=\\s*\\d",
+          "max_retries\\s*=\\s*(5|100)\\b",
+          "expire_time\\s*=\\s*6"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "name": "breaking-change-check",
+      "prompt": "is any of this a breaking change? we've got android and ios apps on v1 in the wild that we can't force-update, so I want to be sure before merging\n\n```diff\n message Order {\n   string name = 1;\n-  string customer = 2;\n+  string customer_name = 2;\n-  int32 quantity = 3;\n+  optional int32 quantity = 3;\n-  string coupon_code = 4;\n-  string gift_card_code = 5;\n+  oneof discount {\n+    string coupon_code = 4;\n+    string gift_card_code = 5;\n+  }\n+  string notes = 6;\n-  int64 total_cents = 7;\n+  reserved 7;\n+  google.type.Money total = 8;\n }\n \n enum OrderState {\n   ORDER_STATE_UNSPECIFIED = 0;\n   PENDING = 1;\n   SHIPPED = 2;\n+  CANCELLED = 3;\n }\n```",
+      "expected_output": "A per-change verdict: the rename, adding optional, moving fields into a oneof and removing total_cents are breaking; notes and CANCELLED are additive. It also flags customer_name misusing the _name suffix and proposes a v1-safe path (add new fields alongside, deprecate the old ones) or a v2.",
+      "files": [],
+      "expectations": [
+        "Judges the customer to customer_name rename as breaking even though the field number is unchanged: the JSON/REST field name and every generated accessor change.",
+        "Judges adding `optional` to quantity as breaking for generated code (for example Go and other languages switch to a pointer or has-accessor), not as safe because the wire format is the same.",
+        "Judges moving coupon_code and gift_card_code into a oneof as breaking, because a message that set both is now silently reduced to one.",
+        "Judges removing total_cents as breaking for existing clients that read it, while noting that reserving 7 is the right way to retire a number.",
+        "Judges notes = 6 and the CANCELLED enum value as additive, with a caution that old clients will see an unrecognised enum value.",
+        "Flags customer_name: the _name suffix is reserved for resource names (AIP-148), so if customer is a resource it should stay customer with a resource_reference, and if not it needs another name.",
+        "Proposes a path that keeps v1 compatible, such as adding total alongside total_cents and marking total_cents deprecated, keeping customer as it is, and leaving the oneof change for v2."
+      ],
+      "signals": {
+        "present": [
+          "optional[^\\n]{0,160}(break|pointer|generated|accessor)",
+          "oneof[^\\n]{0,160}(break|clear|both)",
+          "deprecat",
+          "AIP-148|resource name",
+          "v2"
+        ],
+        "absent": []
+      }
+    },
+    {
+      "id": 6,
+      "name": "compiles-but-not-linted",
+      "prompt": "buf build is green on protos/acme/notes/v1/notes_service.proto so I think we're good — can you give it a quick once-over before I merge? It's a new service, nothing depends on it yet.",
+      "expected_output": "Does not take the green compile as approval: runs api-linter (or gives the install command) and reports the findings, notably missing field_behavior on page_size, page_token and the Note fields, REQUIRED instead of IDENTIFIER on name, the trailing comment, the uncommented GetNote and name, unsorted imports, is_pinned (should be pinned), create_time missing OUTPUT_ONLY, and says the file is not ready to merge.",
+      "files": [
+        "evals/files/compiles-but-not-linted/buf.yaml",
+        "evals/files/compiles-but-not-linted/protos/acme/notes/v1/notes_service.proto"
+      ],
+      "expectations": [
+        "Says plainly that a passing buf build only proves the file compiles, and validates with api-linter: runs it with -I for the googleapis imports, or says it is not installed and gives `go install github.com/googleapis/api-linter/cmd/api-linter@latest`.",
+        "Flags that Note.name should be annotated IDENTIFIER, not REQUIRED.",
+        "Flags the missing field_behavior on page_size and page_token (OPTIONAL) and on the user-settable Note fields, since Note is sent in CreateNote. Saying field_behavior is merely recommended fails this.",
+        "Flags create_time as missing OUTPUT_ONLY.",
+        "Flags the trailing comment on name (it should be a leading `// Format: users/{user}/notes/{note}` comment) and the missing comment on the GetNote RPC.",
+        "Flags the imports as out of alphabetical order (timestamp.proto is first).",
+        "Flags is_pinned, which should be pinned per AIP-140.",
+        "Concludes that the file is not ready to merge as is, and since nothing depends on it yet, says this is the cheap moment to fix it."
+      ],
+      "signals": {
+        "present": [
+          "api-linter",
+          "IDENTIFIER",
+          "page_size[^\\n]*OPTIONAL|OPTIONAL[^\\n]*page_size",
+          "OUTPUT_ONLY",
+          "trailing|leading comment",
+          "alphabetical|sorted|import order",
+          "\\bpinned\\b"
         ],
         "absent": []
       }

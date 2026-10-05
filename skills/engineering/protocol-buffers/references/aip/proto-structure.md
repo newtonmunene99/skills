@@ -33,6 +33,9 @@ build config, or existing protos.
   - `java_multiple_files` — set to `true`.
   - `java_outer_classname` — set to the filename in PascalCase + `Proto`
     (e.g. `LibraryProto`).
+  - api-linter's `core::0191::java-*` rules flag these on every file. A
+    project that does not generate Java disables those rules in its linter
+    config rather than adding options it does not use.
 - **C#/Ruby/PHP** — only needed if generating stubs for these languages. If
   any part of the package is a compound name, these options **must** be
   specified to account for word breaks using PascalCase (e.g.

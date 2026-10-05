@@ -40,13 +40,17 @@ Read this when naming messages or fields, choosing field types, applying field b
 
 ## Field behavior (AIP-203)
 
-Recommended when using `google.api.field_behavior` annotations. These are
-helpful for documentation and code generation but not strictly required unless
-the project or API Linter enforces them.
+Annotate every field of a message used in a request, including the resource
+message itself when it is sent in Create or Update. api-linter's
+`core::0203::field-behavior-required` flags each one that is missing, and the
+per-method rules (`core::0131::request-name-behavior`,
+`core::0132::request-parent-behavior`, `core::0134::update-mask-optional-behavior`
+and so on) check the specific value on `name`, `parent`, the resource field and
+`update_mask`. The annotation also tells clients what they must send, so it is
+worth having even where the linter is not run.
 
-- Apply `google.api.field_behavior` on fields of messages used in requests.
-  Use at least one of: `REQUIRED`, `OPTIONAL`, `OUTPUT_ONLY`. Never use
-  `FIELD_BEHAVIOR_UNSPECIFIED`.
+- Use at least one of `IDENTIFIER`, `REQUIRED`, `OPTIONAL`, `OUTPUT_ONLY` or
+  `IMMUTABLE`. Never use `FIELD_BEHAVIOR_UNSPECIFIED`.
 - **IDENTIFIER:** Only on the resource's `name` field (identifies resource; not
   input on Create; immutable on Update).
 - **REQUIRED / OPTIONAL:** For input fields; required = must be present and
@@ -135,8 +139,9 @@ the project or API Linter enforces them.
 
 ### Enums
 
-- Values in `UPPER_SNAKE_CASE`; first value `{Enum}_UNSPECIFIED` (or `UNKNOWN`
-  if zero). Nested in message when used only there (AIP-126).
+- Values in `UPPER_SNAKE_CASE`; the first value is `{ENUM_NAME}_UNSPECIFIED = 0`
+  and never carries a meaning, so an unset field is distinguishable from a
+  real choice. Nested in the message when used only there (AIP-126).
 
 ### Quantities
 
@@ -169,6 +174,9 @@ add machine-readable format metadata but are not required unless enforced.
   document if so; reflects count after filtering).
 
 ## Documentation (AIP-192)
+
+This section lists what AIP-192 and api-linter require. For how to word a
+comment well, use the code-documentation skill.
 
 - Public comments **must** be on every component (service, method, message,
   field, enum, enum value). Always use **leading comments** (above the
