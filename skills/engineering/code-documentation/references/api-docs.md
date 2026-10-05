@@ -29,8 +29,10 @@ convention and apply the general rules below.
 documents its members. Give a member its own doc only when it needs more than the
 group says.
 
-**TypeScript tags.** Omit `{Type}` in `@param` and `@returns`; the signature already
-carries the types, and a second copy drifts from it.
+**TypeScript tags.** In docs you write, omit `{Type}` in `@param` and `@returns`; the
+signature already carries the types, and a second copy drifts from it. This is a rule
+for new text, not a reason to touch existing docs: leave `{Type}` tags in
+documentation that is otherwise acceptable, because stripping them is churn.
 
 For Python docstring mechanics — `Args:` / `Returns:` / `Raises:` sections and
 hanging-indent layout — the sibling `python-engineering` skill carries the full
