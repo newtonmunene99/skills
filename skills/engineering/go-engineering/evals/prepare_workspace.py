@@ -2,7 +2,8 @@
 """Create the eval workspace layout from evals/evals.json.
 
 Creates <skill-name>-workspace/iteration-N/eval-{id}/ with:
-  - eval_metadata.json (eval_id, eval_name, prompt, expectations)
+  - eval_metadata.json (eval_id, eval_name, prompt, expectations, files)
+  - inputs/ with a copy of the eval's fixture files, if it lists any
   - with_skill/run-1/outputs/
   - without_skill/run-1/outputs/
 
@@ -19,6 +20,7 @@ Usage:
 
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -68,12 +70,28 @@ def main() -> None:
         eval_dir = iter_dir / f"eval-{eid}"
         eval_dir.mkdir(parents=True, exist_ok=True)
 
+        # Fixtures live under evals/files/<eval-name>/; copy them into
+        # inputs/ keeping their layout so the run sees a real project tree.
+        inputs = []
+        for rel in entry.get("files", []):
+            src = skill_dir / rel
+            if not src.is_file():
+                print(f"Error: eval {eid} lists missing file {rel}", file=sys.stderr)
+                sys.exit(1)
+            parts = Path(rel).parts
+            sub = Path(*parts[3:]) if parts[:2] == ("evals", "files") and len(parts) > 3 else Path(src.name)
+            dst = eval_dir / "inputs" / sub
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            inputs.append(str(dst.relative_to(eval_dir)))
+
         metadata = {
             "eval_id": eid,
             # A descriptive name reads better than "eval-3" in the viewer.
             "eval_name": entry.get("name", f"eval-{eid}"),
             "prompt": entry.get("prompt", ""),
             "expectations": entry.get("expectations", []),
+            "files": inputs,
         }
         (eval_dir / "eval_metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
 

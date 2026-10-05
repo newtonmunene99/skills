@@ -1,0 +1,19 @@
+[
+  {"query": "can you add a GET /users/{id}/sessions endpoint to internal/api/handlers.go? follow how the other handlers do it, and it needs a test", "should_trigger": true},
+  {"query": "go test ./... passes locally but TestReconcile in controller_test.go times out in CI about one run in five, here's the log", "should_trigger": true},
+  {"query": "golangci-lint is complaining 'error strings should not be capitalized' and 'exported func NewClient returns unexported type' in pkg/client, can you clean these up", "should_trigger": true},
+  {"query": "I think we have a goroutine leak in the pubsub consumer, pprof goroutine count keeps climbing after each reconnect. consumer.go is attached", "should_trigger": true},
+  {"query": "should this repository interface live in the postgres package or in the service package that uses it? we're arguing about it on the team", "should_trigger": true},
+  {"query": "how do I check if an error returned from our gRPC client wrapper is a NotFound? right now I'm doing strings.Contains(err.Error(), \"not found\") and it feels wrong", "should_trigger": true},
+  {"query": "rename the snake_case fields in models.go to whatever Go convention is and make sure json tags still match the API", "should_trigger": true},
+  {"query": "our ingest service in Go allocates like crazy per request, p99 went from 40ms to 120ms after the last release. where do I even start", "should_trigger": true},
+  {"query": "pass the request context down through Fetch and Store in syncer.go so the job stops when the CLI gets ctrl-c", "should_trigger": true},
+  {"query": "review my branch feature/billing-retries against main before I open the MR, it's mostly Go but touches the proto too", "should_trigger": false},
+  {"query": "the godoc comments in pkg/ratelimit are a mess, can you rewrite them so every exported symbol is documented properly", "should_trigger": false},
+  {"query": "gocognit says ProcessOrder is 47, is that actually a problem or can we just raise the threshold to 50?", "should_trigger": false},
+  {"query": "add a ListInvoices RPC to billing/v1/billing.proto with pagination, following the AIPs", "should_trigger": false},
+  {"query": "this switch on payment provider in checkout.go has 9 cases now, would strategy or a map of funcs be the better pattern here?", "should_trigger": false},
+  {"query": "audit our Go service for SQL injection and auth bypasses before the pentest next week", "should_trigger": false},
+  {"query": "port this python retry decorator to typescript for the frontend fetch wrapper", "should_trigger": false},
+  {"query": "write a README for the go-cli repo explaining install, flags and config file format", "should_trigger": false}
+]

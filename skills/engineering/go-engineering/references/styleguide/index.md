@@ -2,14 +2,12 @@
 
 https://google.github.io/styleguide/go
 
-[Overview](index) | [Guide](guide) | [Decisions](decisions) |
-[Best practices](best-practices)
+[Overview](index.md) | [Guide](guide.md) | [Decisions](decisions.md) |
+[Best practices](best-practices.md)
 
 <!--
 
 -->
-
-{% raw %}
 
 <a id="about"></a>
 
@@ -77,7 +75,7 @@ These documents do **not** intend to:
 There will always be differences from one Go programmer to another and from one
 team's codebase to another. However, it is in the best interest of Google and
 Alphabet that our codebase be as consistent as possible. (See
-[guide](guide#consistency) for more on consistency.) To that end, feel free to
+[guide](guide.md#consistency) for more on consistency.) To that end, feel free to
 make style improvements as you see fit, but you do not need to nit-pick every
 violation of the Style Guide that you find. In particular, these documents may
 change over time, and that is no reason to cause extra churn in existing
@@ -187,5 +185,3 @@ reviews.
 <!--
 
 -->
-
-{% endraw %}

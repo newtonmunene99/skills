@@ -4,24 +4,26 @@
     {
       "id": 1,
       "prompt": "I have a Go HTTP handler that parses JSON and calls a downstream service. Under load we're seeing high allocation rate and GC pressure. How can I reduce allocations on this path?",
-      "expected_output": "Recommendations that include measuring first (pprof/benchmarks), then patterns such as reusing buffers, pooling, or avoiding interface boxing; references to common-patterns or concrete code changes.",
+      "expected_output": "Recommendations that start with measuring allocations (benchmarks with allocation reporting, a heap/alloc profile, escape analysis), then tie each pattern such as buffer reuse, pooling or avoiding interface boxing to the evidence that would justify it.",
       "files": [],
       "expectations": [
         "The response recommends measuring first (e.g. benchmarks, pprof, or escape analysis with -gcflags=\"-m\") before optimizing.",
-        "The response mentions at least one allocation-reduction pattern: buffer reuse, sync.Pool, slice/map preallocation, or avoiding interface boxing on hot paths.",
-        "The response includes a concrete code example or reference (e.g. common-patterns) for reducing allocations."
+        "The response measures allocations specifically, not only CPU: it mentions b.ReportAllocs() or -benchmem, or an allocation/heap profile (e.g. -memprofile, pprof alloc_space/alloc_objects).",
+        "The response uses go build -gcflags=\"-m\" (escape analysis) to find which values on this path escape to the heap.",
+        "The response does not lead with sync.Pool or GOGC/GOMEMLIMIT tuning as the first fix; it presents them as conditional on profile data showing the allocation is hot."
       ],
       "name": "reduce-allocations-hot-path"
     },
     {
       "id": 2,
       "prompt": "Our Go service is calling an internal API with http.Client in a loop. We're hitting thousands of connections and the other team says we're not reusing them. What are we doing wrong and how do we fix it?",
-      "expected_output": "Explanation of connection reuse (draining response body, Transport tuning) and example or reference to draining body and/or tuned Transport.",
+      "expected_output": "Explanation of connection reuse (draining and closing the body, one shared client/Transport) plus the default Transport's per-host idle limit of 2, with MaxIdleConnsPerHost raised to match the concurrency.",
       "files": [],
       "expectations": [
-        "The response explains that not draining the response body before closing prevents the client from reusing connections.",
         "The response recommends draining the body (e.g. io.Copy(io.Discard, resp.Body) or similar) before resp.Body.Close().",
-        "The response mentions Transport tuning (e.g. MaxIdleConns, MaxIdleConnsPerHost, IdleConnTimeout) or references networking patterns."
+        "The response says to reuse one http.Client/Transport across calls rather than creating a new client or Transport per request.",
+        "The response states that the default Transport keeps only 2 idle connections per host (DefaultMaxIdleConnsPerHost) and recommends raising MaxIdleConnsPerHost for heavy traffic to a single host.",
+        "The response sets or mentions timeouts on the client or Transport (e.g. Client.Timeout, IdleConnTimeout) so connections are not held indefinitely."
       ],
       "name": "http-connection-reuse"
     },
@@ -37,6 +39,94 @@
         "The response explains when pooling/prealloc helps (e.g. short-lived objects, hot path) or when to avoid it without data."
       ],
       "name": "pooling-and-prealloc"
+    },
+    {
+      "id": 4,
+      "prompt": "someone reworded the not-found error in store.go last week and now GET /orders/{id} returns 500 instead of 404 for missing orders, because api/handler.go matches on the error text. can you fix this properly so it can't happen again? the code is in this folder (store/, service/, api/)",
+      "expected_output": "store exports a sentinel (ErrNotFound) returned wrapped with %w at the end of the message; service/service.go stops flattening the error with %v and wraps with %w; the handler matches with errors.Is instead of the string. Error strings stay lowercase.",
+      "files": [
+        "evals/files/sentinel-errors/go.mod",
+        "evals/files/sentinel-errors/store/store.go",
+        "evals/files/sentinel-errors/service/service.go",
+        "evals/files/sentinel-errors/api/handler.go"
+      ],
+      "expectations": [
+        "store/store.go declares an exported sentinel error (e.g. var ErrNotFound = errors.New(\"...\")) and Get returns it, wrapped or directly, for a missing order.",
+        "Where Get adds the order ID to the sentinel, %w is placed at the end of the format string (e.g. fmt.Errorf(\"order %s: %w\", id, ErrNotFound)), not at the start.",
+        "service/service.go is changed from %v to %w so the sentinel survives the extra layer; the response notes that %v would break errors.Is.",
+        "api/handler.go uses errors.Is(err, store.ErrNotFound) and no longer calls strings.Contains on err.Error().",
+        "The capitalized error string \"Order ID is empty\" in Put is changed to lowercase (or the response flags it), since Go error strings are not capitalized."
+      ],
+      "name": "sentinel-errors-not-string-match"
+    },
+    {
+      "id": 5,
+      "prompt": "worker/pool_test.go is flaky in CI, sometimes Done() is 19 and the failure message from the goroutines never shows up. go vet also complains about it. can you fix the test?",
+      "expected_output": "Both goroutine call sites stop failing the test from a spawned goroutine, including the one hidden in mustRun that go vet does not report; the sleep is replaced by a WaitGroup; the setup t.Fatalf for NewPool stays; the response explains that t.Fatal stops only the calling goroutine.",
+      "files": [
+        "evals/files/goroutine-test-fatal/go.mod",
+        "evals/files/goroutine-test-fatal/worker/pool.go",
+        "evals/files/goroutine-test-fatal/worker/pool_test.go"
+      ],
+      "expectations": [
+        "The direct t.Fatal inside the second goroutine loop is replaced by t.Error/t.Errorf (followed by return) or by sending the error back to the test goroutine.",
+        "The t.Fatalf inside the mustRun helper, which the goroutines in the first loop call and go vet does not report, is also no longer reached from a spawned goroutine.",
+        "time.Sleep is replaced by a sync.WaitGroup (or equivalent) that the test waits on before checking Done().",
+        "The t.Fatalf after NewPool, which runs on the test's own goroutine during setup, is kept as t.Fatalf rather than converted to t.Errorf.",
+        "The response explains that t.Fatal/FailNow calls runtime.Goexit and so stops only the goroutine that calls it, not the test."
+      ],
+      "name": "test-fatal-in-goroutine"
+    },
+    {
+      "id": 6,
+      "prompt": "I want to unit test billing.Service.Charge without spinning up Postgres. storage.Store has 8 methods, do I really need to mock all of them? whats the cleanest way to set this up in go? code is in storage/ and billing/",
+      "expected_output": "A small interface declared in package billing with only GetCustomer, UpdateBalance and CreateInvoice; storage.NewStore returns its concrete type; a hand-written fake in billing's test satisfies the small interface.",
+      "files": [
+        "evals/files/consumer-interface/go.mod",
+        "evals/files/consumer-interface/storage/postgres.go",
+        "evals/files/consumer-interface/billing/service.go"
+      ],
+      "expectations": [
+        "The response declares an interface in package billing (the consumer), not in storage, with only the three methods Charge calls: GetCustomer, UpdateBalance and CreateInvoice.",
+        "The response changes, or recommends changing, storage.NewStore to return a concrete exported type (e.g. *PostgresStore) instead of the Store interface.",
+        "The test uses a small hand-written fake implementing those three methods; it does not generate a mock for all eight methods of storage.Store.",
+        "The response explains why: the consumer owns the interface it depends on, so storage can grow methods without breaking billing's fake."
+      ],
+      "name": "consumer-side-interface"
+    },
+    {
+      "id": 7,
+      "prompt": "we keep getting PR nits about british spellings in this repo (cancelled vs canceled etc). can you get golangci-lint to catch them and fix whatever's in there now? config is .golangci.yml at the root, we're on golangci-lint v2",
+      "expected_output": "misspell enabled in the v2 config with linters.settings.misspell.locale: US, all four British spellings in syncer/syncer.go fixed (cancelled twice, Marshalling, marshalling), and a note that without locale US misspell accepts these spellings.",
+      "files": [
+        "evals/files/misspell-locale/go.mod",
+        "evals/files/misspell-locale/.golangci.yml",
+        "evals/files/misspell-locale/syncer/syncer.go"
+      ],
+      "expectations": [
+        "The .golangci.yml enables misspell and sets locale: US under linters.settings.misspell (golangci-lint v2 layout), not under a v1 top-level linters-settings key.",
+        "The response says that without locale: US misspell does not flag British spellings like \"cancelled\", which is why enabling the linter alone is not enough.",
+        "syncer/syncer.go uses \"canceled\" in both the doc comment and the error string.",
+        "syncer/syncer.go uses \"Marshaling\" in the doc comment and \"marshaling\" in the error string."
+      ],
+      "name": "misspell-us-locale"
+    },
+    {
+      "id": 8,
+      "prompt": "after a power cut one of our agents came back with an empty config.json and wouldn't start. Save in config/config.go just does os.WriteFile. make it so a crash mid-write can't leave a broken file",
+      "expected_output": "Save writes to a temp file created in the target's directory, syncs and closes it, restores the 0640 mode the doc comment requires, then renames it over the target, removing the temp file on any error.",
+      "files": [
+        "evals/files/atomic-config-write/go.mod",
+        "evals/files/atomic-config-write/config/config.go"
+      ],
+      "expectations": [
+        "Save creates the temp file with os.CreateTemp in filepath.Dir(path) (the target's own directory), not in os.TempDir(), so the rename stays on one filesystem.",
+        "Save calls Sync on the temp file before Close and Rename.",
+        "Save sets the temp file's mode to 0640 (Chmod) before the rename, since os.CreateTemp creates files with mode 0600 and the doc comment requires 0640.",
+        "Save removes the temp file on every error path after it is created (e.g. a deferred os.Remove guarded by success).",
+        "Save replaces the target with os.Rename."
+      ],
+      "name": "atomic-config-write"
     }
   ]
 }
