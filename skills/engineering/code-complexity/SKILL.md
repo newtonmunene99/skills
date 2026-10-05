@@ -138,7 +138,8 @@ and never a replacement for saying the findings out loud.
    table to it and keep the reply to what matters; where no page was written, the reply
    carries everything.
 6. **Write the HTML report — by default, not by obligation.** Whenever a tool actually
-   ran and there are per-function scores, generate `complexity-report.html` from
+   ran and there are per-function scores — including linter output the user ran
+   and pasted, which counts as measured even though you did not scan the repo — generate `complexity-report.html` from
    `assets/report-template.html` — a single self-contained page with live threshold
    sliders, a hot-spots table carrying a cognitive-over-cyclomatic ratio and a verdict
    per finding, and the gate recommendation. Put it where the reader will look: a path

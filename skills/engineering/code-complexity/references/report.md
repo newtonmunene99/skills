@@ -33,7 +33,9 @@ one; never let its existence shorten the reply below the findings themselves.
 ## When to generate one
 
 **Whenever the review has real findings** — meaning a tool actually ran and produced
-per-function scores. That is the trigger; no need to ask first.
+per-function scores. Linter output the user ran and pasted counts: the numbers are
+real even though you did not run the tool yourself. That is the trigger; no need to
+ask first.
 
 Skip it when there is nothing to put in it:
 
