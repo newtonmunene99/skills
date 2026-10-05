@@ -4,19 +4,76 @@
 
 https://google.github.io/styleguide/go/best-practices
 
-[Overview](index) | [Guide](guide) | [Decisions](decisions) |
-[Best practices](best-practices)
+[Overview](index.md) | [Guide](guide.md) | [Decisions](decisions.md) |
+[Best practices](best-practices.md)
 
 <!--
 
 -->
 
-{% raw %}
+**Contents** (or run `grep -n '^##' best-practices.md` for sections with line numbers;
+read only the section you need):
 
-**Note:** This is part of a series of documents that outline [Go Style](index)
-at Google. This document is **neither [normative](index#normative) nor
-[canonical](index#canonical)**, and is an auxiliary document to the
-[core style guide](guide). See [the overview](index#about) for more information.
+*   [About](#about)
+*   [Naming](#naming)
+    *   [Function and method names](#function-names)
+    *   [Test double and helper packages](#naming-doubles)
+    *   [Shadowing](#shadowing)
+    *   [Util packages](#util-packages)
+*   [Package size](#package-size)
+*   [Imports](#imports)
+    *   [Protocol Buffer Messages and Stubs](#import-protos)
+    *   [Import ordering](#import-order)
+*   [Error handling](#error-handling)
+    *   [Error structure](#error-structure)
+    *   [Adding information to errors](#error-extra-info)
+    *   [Placement of %w in errors](#error-percent-w)
+    *   [Logging errors](#error-logging)
+    *   [Program initialization](#program-init)
+    *   [Program checks and panics](#checks-and-panics)
+    *   [When to panic](#when-to-panic)
+*   [Documentation](#documentation)
+    *   [Conventions](#documentation-conventions)
+    *   [Preview](#documentation-preview)
+    *   [Godoc formatting](#godoc-formatting)
+    *   [Signal boosting](#signal-boost)
+*   [Variable declarations](#vardecls)
+    *   [Initialization](#vardeclinitialization)
+    *   [Declaring variables with zero values](#vardeclzero)
+    *   [Composite literals](#vardeclcomposite)
+    *   [Size hints](#vardeclsize)
+    *   [Channel direction](#decl-chan)
+*   [Function argument lists](#funcargs)
+    *   [Option structure](#option-structure)
+    *   [Variadic options](#variadic-options)
+*   [Complex command-line interfaces](#complex-clis)
+*   [Tests](#tests)
+    *   [Leave testing to the `Test` function](#test-functions)
+    *   [Designing extensible validation APIs](#test-validation-apis)
+    *   [Use real transports](#use-real-transports)
+    *   [`t.Error` vs. `t.Fatal`](#t-fatal)
+    *   [Error handling in test helpers](#test-helper-error-handling)
+    *   [Don't call `t.Fatal` from separate goroutines](#t-fatal-goroutine)
+    *   [Use field names in struct literals](#t-field-names)
+    *   [Keep setup code scoped to specific tests](#t-common-setup-scope)
+*   [String concatenation](#string-concat)
+    *   [Prefer "+" for simple cases](#string-concat-simple)
+    *   [Prefer `fmt.Sprintf` when formatting](#string-concat-fmt)
+    *   [Prefer `strings.Builder` for constructing a string piecemeal](#string-concat-piecemeal)
+    *   [Constant strings](#string-constants)
+*   [Global state](#globals)
+    *   [Major forms of package state APIs](#globals-forms)
+    *   [Litmus tests](#globals-litmus-tests)
+    *   [Providing a default instance](#globals-default-instance)
+*   [Interfaces](#interfaces)
+    *   [Avoid unnecessary interfaces](#avoid-unnecessary-interfaces)
+    *   [Interface ownership and visibility](#interface-ownership-and-visibility)
+    *   [Designing effective interfaces](#designing-effective-interfaces)
+
+**Note:** This is part of a series of documents that outline [Go Style](index.md)
+at Google. This document is **neither [normative](index.md#normative) nor
+[canonical](index.md#canonical)**, and is an auxiliary document to the
+[core style guide](guide.md). See [the overview](index.md#about) for more information.
 
 <a id="about"></a>
 
@@ -28,7 +85,7 @@ not apply in every circumstance. Where possible, multiple alternative approaches
 are discussed along with the considerations that go into the decision about when
 and when not to apply them.
 
-See [the overview](index#about) for the full set of Style Guide documents.
+See [the overview](index.md#about) for the full set of Style Guide documents.
 
 <a id="naming"></a>
 
@@ -44,7 +101,7 @@ See [the overview](index#about) for the full set of Style Guide documents.
 
 When choosing the name for a function or method, consider the context in which
 the name will be read. Consider the following recommendations to avoid excess
-[repetition](decisions#repetition) at the call site:
+[repetition](decisions.md#repetition) at the call site:
 
 *   The following can generally be omitted from function and method names:
 
@@ -53,7 +110,7 @@ the name will be read. Consider the following recommendations to avoid excess
     *   Whether an input or output is a pointer
 
 *   For functions, do not
-    [repeat the name of the package](decisions#repetitive-with-package).
+    [repeat the name of the package](decisions.md#repetitive-with-package).
 
     ```go
     // Bad:
@@ -129,7 +186,7 @@ methods:
     ```
 
     A corollary of this is that function and method names should
-    [avoid the prefix `Get`](decisions#getters).
+    [avoid the prefix `Get`](decisions.md#getters).
 
     ```go
     // Bad:
@@ -174,7 +231,7 @@ stub, fake, mock, or spy.
 These examples mostly use stubs. Update your names accordingly if your code uses
 fakes or another kind of test double.
 
-[naming]: guide#naming
+[naming]: guide.md#naming
 [test doubles]: https://abseil.io/resources/swe-book/html/ch13.html#basic_concepts
 
 Suppose you have a well-focused package providing production code similar to
@@ -518,13 +575,13 @@ In the case we called stomping, because there's no new variable, the type being
 assigned must match that of the original variable. With shadowing, an entirely
 new entity is introduced so it can have a different type. Intentional shadowing
 can be a useful practice, but you can always use a new name if it improves
-[clarity](guide#clarity).
+[clarity](guide.md#clarity).
 
 It is not a good idea to use variables with the same name as standard packages
 other than very small scopes, because that renders free functions and values
 from that package inaccessible. Conversely, when picking a name for your
 package, avoid names that are likely to require
-[import renaming](decisions#import-renaming) or cause shadowing of otherwise
+[import renaming](decisions.md#import-renaming) or cause shadowing of otherwise
 good variable names at the client side.
 
 ```go
@@ -545,11 +602,11 @@ Go packages have a name specified on the `package` declaration, separate from
 the import path. The package name matters more for readability than the path.
 
 Go package names should be
-[related to what the package provides](decisions#package-names). Naming a
+[related to what the package provides](decisions.md#package-names). Naming a
 package just `util`, `helper`, `common` or similar is usually a poor choice (it
 can be used as *part* of the name though). Uninformative names make the code
 harder to read, and if used too broadly they are liable to cause needless
-[import conflicts](decisions#import-renaming).
+[import conflicts](decisions.md#import-renaming).
 
 Instead, consider what the callsite will look like.
 
@@ -619,7 +676,7 @@ files should be small enough that it will be easy to find once there. The
 standard library often splits large packages to several source files, grouping
 related code by file. The source for [package `bytes`] is a good example.
 Packages with long package documentation may choose to dedicate one file called
-`doc.go` that has the [package documentation](decisions#package-comments), a
+`doc.go` that has the [package documentation](decisions.md#package-comments), a
 package declaration, and nothing else, but this is not required.
 
 Within the Google codebase and in projects using Bazel, directory layout for Go
@@ -1161,7 +1218,7 @@ See also:
 *   [Go Tip #48: Error Sentinel Values]
 *   [Go Tip #106: Error Naming Conventions]
 
-[commentary]: decisions#commentary
+[commentary]: decisions.md#commentary
 [Go Tip #48: Error Sentinel Values]: https://google.github.io/styleguide/go/index.html#gotip
 [Go Tip #106: Error Naming Conventions]: https://google.github.io/styleguide/go/index.html#gotip
 
@@ -1300,7 +1357,7 @@ standard library does not have access to the [levelled `log`] package that the
 Google codebase uses.
 
 [`reflect`]: https://pkg.go.dev/reflect
-[levelled `log`]: decisions#logging
+[levelled `log`]: decisions.md#logging
 
 Another case in which panics can be useful, though uncommon, is as an internal
 implementation detail of a package which always has a matching recover in the
@@ -1368,7 +1425,7 @@ func answer(i int) string {
 
 [Do not call `log` functions before flags have been parsed.](https://pkg.go.dev/github.com/golang/glog#pkg-overview)
 If you must die in a package initialization function (an `init` or a
-["must" function](decisions#must-functions)), a panic is acceptable in place of
+["must" function](decisions.md#must-functions)), a panic is acceptable in place of
 the fatal logging call.
 
 See also:
@@ -1396,7 +1453,7 @@ to be misused than something misdocumented or not documented at all. Runnable
 [examples] show up in Godoc and Code Search and are an excellent way of
 explaining how to use your code.
 
-[examples]: decisions#examples
+[examples]: decisions.md#examples
 
 <a id="documentation-conventions-params"></a>
 
@@ -1450,7 +1507,7 @@ See also:
 *   [GoTip #41: Identify Function Call Parameters]
 *   [GoTip #51: Patterns for Configuration]
 
-[commentary]: decisions#commentary
+[commentary]: decisions.md#commentary
 [GoTip #41: Identify Function Call Parameters]: https://google.github.io/styleguide/go/index.html#gotip
 [GoTip #51: Patterns for Configuration]: https://google.github.io/styleguide/go/index.html#gotip
 
@@ -1459,8 +1516,10 @@ See also:
 #### Contexts
 
 **Note (skill maintainer):** The upstream prose spells "cancelled"; the Go
-comments in the samples below use the US "canceled" that Go itself and the
-`misspell` linter expect. Use US spelling in code and comments.
+comments in the samples below use the US "canceled" that Go's own code uses
+(canceled, marshaling). The `misspell` linter enforces this only when configured
+with `linters.settings.misspell.locale: US`; by default it accepts "cancelled"
+and "marshalling".
 
 It is implied that the cancellation of a context argument interrupts the
 function it is provided to. If the function can return an error, conventionally
@@ -1711,7 +1770,7 @@ than `*PathError` due to
 [how nil interface values work](https://go.dev/doc/faq#nil_error).
 
 Document overall error conventions in the
-[package's documentation](decisions#package-comments) when the behavior is
+[package's documentation](decisions.md#package-comments) when the behavior is
 applicable to most errors found in the package:
 
 ```go
@@ -1824,7 +1883,7 @@ during the code review process. This helps to validate that the
 
 [Godoc]: https://pkg.go.dev/
 [format documentation]: https://go.dev/doc/comment
-[runnable examples]: decisions#examples
+[runnable examples]: decisions.md#examples
 
 <a id="signal-boost"></a>
 
@@ -1928,7 +1987,7 @@ msg := new(pb.Bar) // or "&pb.Bar{}"
 if err := proto.Unmarshal(data, msg); err != nil {
 ```
 
-If you need a lock or other field that [must not be copied](decisions#copying)
+If you need a lock or other field that [must not be copied](decisions.md#copying)
 in your struct, you can make it a value type to take advantage of zero value
 initialization. It does mean that the containing type must now be passed via a
 pointer and not a value. Methods on the type must take pointer receivers.
@@ -2125,8 +2184,8 @@ See also:
 
 [option struct]: #option-structure
 [variadic options]: #variadic-options
-[clarity]: guide#clarity
-[least mechanism]: guide#least-mechanism
+[clarity]: guide.md#clarity
+[least mechanism]: guide.md#least-mechanism
 
 <a id="option-structure"></a>
 
@@ -2199,7 +2258,7 @@ func foo(ctx context.Context) {
 }
 ```
 
-**Note:** [Contexts are never included in option structs](decisions#contexts).
+**Note:** [Contexts are never included in option structs](decisions.md#contexts).
 
 This option is often preferred when some of the following apply:
 
@@ -2437,10 +2496,10 @@ The purpose of a test is to report pass/fail conditions of the code under test.
 The ideal place to fail a test is within the `Test` function itself, as that
 ensures that [failure messages] and the test logic are clear.
 
-[mark them as a test helper]: decisions#mark-test-helpers
+[mark them as a test helper]: decisions.md#mark-test-helpers
 [error handling in test helpers]: #test-helper-error-handling
-[not considered idiomatic]: decisions#assert
-[failure messages]: decisions#useful-test-failures
+[not considered idiomatic]: decisions.md#assert
+[failure messages]: decisions.md#useful-test-failures
 
 As your testing code grows, it may become necessary to factor out some
 functionality to separate functions. Standard software engineering
@@ -2528,10 +2587,10 @@ in libraries should usually [not panic] except in rare circumstances; code
 called from a test should not stop the test unless there is
 [no point in proceeding].
 
-[table-driven test]: decisions#table-driven-tests
-[useful test failures]: decisions#useful-test-failures
+[table-driven test]: decisions.md#table-driven-tests
+[useful test failures]: decisions.md#useful-test-failures
 [package `cmp`]: https://pkg.go.dev/github.com/google/go-cmp/cmp
-[not panic]: decisions#dont-panic
+[not panic]: decisions.md#dont-panic
 [no point in proceeding]: #t-fatal
 
 <a id="test-validation-apis"></a>
@@ -2552,7 +2611,7 @@ what goes on in the test; they just hand the inputs over to the testing facility
 to do the work. This can be thought of as a form of [inversion of control].
 
 In a typical Go test, the test function controls the program flow, and the
-[no assert](decisions#assert) and [test functions](#test-functions) guidance
+[no assert](decisions.md#assert) and [test functions](#test-functions) guidance
 encourages you to keep it that way. This section explains how to author support
 for these tests in a way that is consistent with Go style.
 
@@ -2628,7 +2687,7 @@ implementation makes legal moves, not whether the moves are smart.
 
     *   **Aggregate all failures**: collect all failures, and report them all.
 
-        This approach resembles the [keep going](decisions#keep-going) guidance
+        This approach resembles the [keep going](decisions.md#keep-going) guidance
         in feel and may be preferable if the acceptance test is expected to
         execute slowly.
 
@@ -2652,7 +2711,7 @@ implementation makes legal moves, not whether the moves are smart.
         return nil
         ```
 
-The acceptance test should honor the [keep going](decisions#keep-going) guidance
+The acceptance test should honor the [keep going](decisions.md#keep-going) guidance
 by not calling `t.Fatal` unless the test detects a broken invariant in the
 system being exercised.
 
@@ -2675,7 +2734,7 @@ func ExerciseGame(t *testing.T, cfg *Config, p chess.Player) error {
 ```
 
 This technique can help you create concise, canonical validations. But do not
-attempt to use it to bypass the [guidance on assertions](decisions#assert).
+attempt to use it to bypass the [guidance on assertions](decisions.md#assert).
 
 The final product should be in a form similar to this for end users:
 
@@ -2733,7 +2792,7 @@ service under test.
 
 ### `t.Error` vs. `t.Fatal`
 
-As discussed in [decisions](decisions#keep-going), tests should generally not
+As discussed in [decisions](decisions.md#keep-going), tests should generally not
 abort at the first encountered problem.
 
 However, some situations require that the test not proceed. Calling `t.Fatal` is
@@ -2763,7 +2822,7 @@ reported as follows:
 functions that perform test setup and cleanup, not common assertion facilities.
 See the [test functions](#test-functions) section for more discussion.
 
-[test helpers]: decisions#mark-test-helpers
+[test helpers]: decisions.md#mark-test-helpers
 
 Operations performed by a test helper sometimes fail. For example, setting up a
 directory with files involves I/O, which can fail. When test helpers fail, their
@@ -3316,8 +3375,6 @@ usage := "" +
 
 -->
 
-{% endraw %}
-
 <a id="globals"></a>
 
 ## Global state
@@ -3454,9 +3511,9 @@ clients:
 *   What happens if multiple clients `Register` a `Plugin` under the same name?
     Which one wins, if any?
 
-    How should errors be [handled](decisions#handle-errors)? If the code panics
+    How should errors be [handled](decisions.md#handle-errors)? If the code panics
     or calls `log.Fatal`, will that always be
-    [appropriate for all places in which API would be called](decisions#dont-panic)?
+    [appropriate for all places in which API would be called](decisions.md#dont-panic)?
     Can a client verify it doesn't do something bad before doing so?
 
 *   Are there certain stages in a program's startup phases or lifetime during
@@ -3468,7 +3525,7 @@ clients:
     called affects error handling. If the author of an API assumes the API is
     *only* called during program initialization without the requirement that it
     is, the assumption may nudge the author to design error handling to
-    [abort the program](best-practices#program-init) by modeling the API as a
+    [abort the program](best-practices.md#program-init) by modeling the API as a
     `Must`-like function. Aborting is not appropriate for general-purpose
     library functions that can be used at any stage.
 
@@ -3554,7 +3611,7 @@ Several of the most common problematic API forms are enumerated below:
 > **Note:** Many legacy APIs in the Google codebase do not follow this guidance;
 > in fact, some Go standard libraries allow for configuration via global values.
 > Nevertheless, the legacy API's contravention of this guidance
-> **[should not be used as precedent](guide#local-consistency)** for continuing
+> **[should not be used as precedent](guide.md#local-consistency)** for continuing
 > the pattern.
 >
 > It is better to invest in proper API design today than pay for redesigning
@@ -3680,14 +3737,14 @@ interfaces are satisfied implicitly, they are a structural tool rather than a
 declarative one. The following guidance provides the best practices for how to
 design and return interfaces in Go without over-engineering your codebase.
 
-Refer to [Decisions' section on interfaces](decisions#interfaces) for a summary.
+Refer to [Decisions' section on interfaces](decisions.md#interfaces) for a summary.
 
 <a id="avoid-unnecessary-interfaces"></a>
 
 ### Avoid unnecessary interfaces
 
 The most common mistake is creating an interface before a
-[real need](guide#simplicity) exists.
+[real need](guide.md#simplicity) exists.
 
 1.  **Don’t confuse the concept with the keyword:** Just because you are
     designing a "service" or a "repository" or similar pattern doesn't mean you
@@ -3710,7 +3767,7 @@ The most common mistake is creating an interface before a
     the test double) instead of one.
 
     Export an interface for a test double when you have a
-    [material need](guide#least-mechanism) to support substitution.
+    [material need](guide.md#least-mechanism) to support substitution.
 
 When it does make sense to create an interface:
 
@@ -3818,7 +3875,7 @@ choice:
     (as they remain accessible via type assertions), returning an interface is a
     powerful tool for limiting the default API surface and guiding the caller's
     behavior.. The most common example is the `error` interface; you
-    [almost never return a concrete error type](decisions#errors) like
+    [almost never return a concrete error type](decisions.md#errors) like
     `*MyCustomError`.
 
     Consider a `ThrottledReader` that implements `io.Reader` but also has a

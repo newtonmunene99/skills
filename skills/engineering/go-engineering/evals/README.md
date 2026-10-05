@@ -4,14 +4,16 @@ This directory contains test cases for the go-engineering skill and instructions
 
 ## Prerequisites
 
-- The **skill-creator** skill must be installed (e.g. under `.agents/skills/skill-creator/` or `~/.cursor/skills/skill-creator/`). Its scripts and eval-viewer are required for aggregate and review.
+- The **skill-creator** skill must be installed (`run_benchmark.sh` looks in `<repo-root>/.agents/skills/skill-creator/`, then `~/.claude/skills/skill-creator/`, unless you pass a path or set `SKILL_CREATOR_PATH`). Its scripts and eval-viewer are required for aggregate and review.
 - **Runner**: Executed by an agent (e.g. Claude with access to the skill). The agent spawns subagents or runs prompts with/without the skill and saves outputs into the workspace.
 - **Grader**: Uses the skill-creator’s grader agent (`agents/grader.md`) to evaluate outputs against expectations and produce `grading.json`.
 
 ## Files
 
-- **evals.json** — Defines eval prompts, expected outputs, optional input files, and expectations (assertions). Add or edit expectations before or after the first run.
-- **prepare_workspace.py** — Creates the workspace directory layout and `eval_metadata.json` from `evals.json` so you can run the agent and then grade/aggregate/view.
+- **evals.json** — Defines eval prompts, expected outputs, optional input files, and expectations (assertions). Add or edit expectations before or after the first run. Evals 1–3 cover performance; 4–8 cover everyday code (sentinel errors, `t.Fatal` in goroutines, consumer-side interfaces, the `misspell` US locale, atomic file writes) and come with a small Go project each.
+- **files/<eval-name>/** — Fixture projects for the evals that need code on disk. Each compiles with `go build ./...`.
+- **trigger-evals.json** — Should-trigger and should-not-trigger queries for the description, in the skill-creator's description-optimization format. The near-misses belong to neighbouring skills (git-code-review, code-documentation, code-complexity, protocol-buffers, design-patterns).
+- **prepare_workspace.py** — Creates the workspace directory layout and `eval_metadata.json` from `evals.json`, and copies each eval's fixture files into its `inputs/`, so you can run the agent and then grade/aggregate/view.
 - **run_benchmark.sh** — Runs the skill-creator’s `aggregate_benchmark` and `generate_review` so you get `benchmark.json`/`benchmark.md` and the review UI.
 
 ## Directory layout
@@ -24,6 +26,7 @@ go-engineering-workspace/    # workspace (created by prepare_workspace.py)
 └── iteration-1/
     ├── eval-1/
     │   ├── eval_metadata.json
+    │   ├── inputs/               # fixture files, for evals that list any
     │   ├── with_skill/
     │   │   └── run-1/
     │   │       ├── outputs/      # agent writes here
@@ -34,9 +37,9 @@ go-engineering-workspace/    # workspace (created by prepare_workspace.py)
     │           ├── outputs/
     │           ├── grading.json
     │           └── timing.json
-    ├── eval-2/
+    ├── eval-2/ … eval-7/
     │   └── ...
-    └── eval-3/
+    └── eval-8/
         └── ...
 ```
 
@@ -55,19 +58,19 @@ From the **skill root** (parent of `evals/`):
 python evals/prepare_workspace.py
 ```
 
-Or from repo root if the go skill is in a subdir:
+Or from the repo root:
 
 ```bash
-python go/evals/prepare_workspace.py --skill-dir go
+python skills/engineering/go-engineering/evals/prepare_workspace.py --skill-dir skills/engineering/go-engineering
 ```
 
-This creates `go-engineering-workspace/iteration-1/eval-1/`, `eval-2/`, `eval-3/` with `eval_metadata.json` and empty `with_skill/run-1/outputs/` and `without_skill/run-1/outputs/`.
+This creates `go-engineering-workspace/iteration-1/eval-1/` through `eval-8/` with `eval_metadata.json`, an `inputs/` copy of any fixture files, and empty `with_skill/run-1/outputs/` and `without_skill/run-1/outputs/`.
 
 ### 2. Run evals (agent)
 
 Use the skill-creator workflow (or your own runner):
 
-- For each eval in `evals.json`, run the **prompt** twice:
+- For each eval in `evals.json`, run the **prompt** twice, with the eval's `inputs/` copied into the run's working directory when it has one:
   - **With skill**: skill path = path to `go-engineering`, save outputs to `go-engineering-workspace/iteration-1/eval-<id>/with_skill/run-1/outputs/`.
   - **Without skill**: same prompt, no skill, save to `go-engineering-workspace/iteration-1/eval-<id>/without_skill/run-1/outputs/`.
 - Optionally save `timing.json` in each `run-1/` when the run completes (from the run notification: `total_tokens`, `duration_ms`, `total_duration_seconds`).
