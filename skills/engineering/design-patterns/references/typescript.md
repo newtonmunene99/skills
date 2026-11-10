@@ -15,6 +15,7 @@ gets the same shapes with the types removed.
 - [DI containers](#di-containers)
 - [SOLID in UI components](#solid-in-ui-components)
 - [When a style guide says otherwise](#when-a-style-guide-says-otherwise)
+- [Generics in TypeScript](#generics-in-typescript)
 - [Creational](#creational): [Factory Method](#factory-method),
   [Abstract Factory](#abstract-factory), [Builder](#builder),
   [Prototype](#prototype), [Singleton](#singleton)
@@ -387,6 +388,126 @@ cite them for something different, this is when their version is right:
   `MyArray` through `Symbol.species`. A plain function, `difference(a, b)`, is
   simpler.
 
+## Generics in TypeScript
+
+The language-neutral rules are in [generics.md](generics.md). Examples here are
+checked with TypeScript 7.
+
+**A type parameter must relate two things:** an input to the output, or two inputs
+to each other. That is the whole test, and it catches both common mistakes.
+
+- **Used once, it does nothing.** `function lengthOf<T extends { length: number }>(x: T): number`
+  is `function lengthOf(x: { length: number }): number` with extra syntax. The
+  typescript-eslint rule `no-unnecessary-type-parameters` finds these. Return the
+  value as `T` and the parameter earns its place: the caller gets its own type back.
+- **Used only in the return type, it is a cast.** `getJson<User>(url)` lets the
+  caller pick a type that nothing checks. Take a parser instead, and the type
+  follows from the value that does the checking.
+
+```ts
+// Relates input to output: the reason a type parameter exists.
+export function first<T>(xs: readonly T[]): T | undefined {
+  return xs[0];
+}
+
+// Return-only T: a cast the caller writes. Avoid.
+export async function getJsonBefore<T>(url: string): Promise<T> {
+  return (await fetch(url)).json();
+}
+
+// T is inferred from the parser, which is what actually checks the data.
+export async function getJson<T>(url: string, parse: (data: unknown) => T): Promise<T> {
+  return parse(await (await fetch(url)).json());
+}
+// const user = await getJson("/api/me", User.parse); // a zod schema, for example
+```
+
+**Where generics pay:**
+
+- **Containers and helpers** that keep the caller's type: `first`, a `Cache<K, V>`,
+  a `chunk<T>(xs: T[], size: number): T[][]`. Check the built-ins first (`Array`,
+  `Map`, `Set`, iterator helpers, `Object.groupBy`).
+- **Keyed maps of types:** an event bus where the event name picks the payload type,
+  a registry where the key picks the handler. This is the typed version of the
+  [Observer](#observer) emitter.
+- **Literal-preserving APIs:** route tables, state names, config keys.
+- **Property access by key:** `K extends keyof T` ties a key to its value type,
+  as in `pluck<T, K extends keyof T>(items: readonly T[], key: K): T[K][]`.
+- **Envelope types** that wrap many payloads the same way: `ApiResponse<T>`,
+  `Page<T>`. Reach for the built-in utility types (`Partial`, `Pick`, `Omit`,
+  `Record`, `ReturnType`, `Awaited`) before writing a mapped or conditional type.
+
+**Explicit type arguments are fine where inference cannot see the type:**
+`useState<User | null>(null)`, `new Map<string, Order>()`. Needing them on an
+ordinary call is a sign the parameters are in the wrong order or the design is off.
+
+```ts
+export function createBus<Events extends Record<string, unknown>>() {
+  const listeners = new Map<keyof Events, Set<(payload: never) => void>>();
+  return {
+    on<K extends keyof Events>(type: K, fn: (payload: Events[K]) => void): () => void {
+      const set = listeners.get(type) ?? new Set();
+      listeners.set(type, set.add(fn));
+      return () => void set.delete(fn);
+    },
+    emit<K extends keyof Events>(type: K, payload: Events[K]): void {
+      // One cast, hidden inside: a Map cannot type each key's value separately.
+      for (const fn of [...(listeners.get(type) ?? [])]) {
+        (fn as (payload: Events[K]) => void)(payload);
+      }
+    },
+  };
+}
+
+const bus = createBus<{
+  shipped: { orderId: string };
+  cancelled: { orderId: string; reason: string };
+}>();
+bus.on("cancelled", ({ reason }) => console.log(reason));
+// @ts-expect-error: "shipped" carries no reason
+bus.emit("shipped", { orderId: "o1", reason: "x" });
+
+// const type parameter (TS 5.0+): keeps literal types without `as const` at the call.
+export function defineRoutes<const T extends readonly string[]>(paths: T): T {
+  return paths;
+}
+const routes = defineRoutes(["/", "/orders"]); // readonly ["/", "/orders"]
+export type Route = (typeof routes)[number];
+
+// NoInfer (TS 5.4+): `initial` must be one of `states` and cannot widen S.
+export function createMachine<S extends string>(states: readonly S[], initial: NoInfer<S>) {
+  let current: S = initial;
+  return { get: () => current, set: (s: S) => void (current = s) };
+}
+// @ts-expect-error: "done" is not one of the states
+createMachine(["idle", "running"], "done");
+```
+
+**Types are erased at runtime.** A generic function cannot write `new T()`,
+`instanceof T` or `typeof x === T`. Pass the constructor (`make: new () => T`), a
+factory, or a schema: a value that exists at runtime.
+
+**Avoid:**
+
+- **A union written as a type parameter.** `format<T extends string | number>(x: T): string`
+  is `format(x: string | number): string`.
+- **A class-level type parameter that one method uses.** Move it to that method.
+  (Static members cannot see class type parameters at all.)
+- **A cast inside a generic body to make it compile.** `return { [key]: value } as Record<K, V>`
+  looks harmless, but a computed key gives `{ [x: string]: V }`, and when `K` is a
+  union such as `"a" | "b"` the cast claims both keys exist when only one does.
+  If the body needs a cast, the signature is promising more than the code delivers.
+- **`<T = any>` defaults and `<T extends any>`.** The first becomes `any` wherever
+  `T` is not inferred, and checking quietly stops; the second constrains nothing.
+  Default to `unknown`.
+- **A generic `BaseRepository<T>`** with the same CRUD methods for every entity, and
+  an abstract class hierarchy beneath it. Each store needs its own queries.
+- **Type-level programs:** conditional types nested three deep, recursive mapped
+  types, string-literal parsers. They are hard to read and their errors are worse.
+  For two or three cases, overloads or a union say the same thing plainly. Keep the
+  clever types in libraries that need them, with tests (`expectTypeOf`, or
+  `@ts-expect-error` lines like the ones above).
+
 ## Creational
 
 ### Factory Method
@@ -746,12 +867,15 @@ function cachingStore(inner: ReportStore, ttlMs: number): ReportStore {
     get(id) {
       const hit = cache.get(id);
       if (hit && hit.expires > Date.now()) return hit.value;
-      // Caching the promise means concurrent callers share one request.
+      // Caching the promise means concurrent callers share one request. A pending
+      // entry never expires; the TTL starts when the value arrives.
       const value = inner.get(id);
-      value.catch(() => {
-        if (cache.get(id)?.value === value) cache.delete(id); // don't cache failures
-      });
-      cache.set(id, { value, expires: Date.now() + ttlMs });
+      const entry = { value, expires: Infinity };
+      cache.set(id, entry);
+      value.then(
+        () => { entry.expires = Date.now() + ttlMs; },
+        () => { if (cache.get(id) === entry) cache.delete(id); }, // don't cache failures
+      );
       return value;
     },
   };
@@ -877,19 +1001,22 @@ async generator for paged APIs.
 
 ```ts
 interface User { id: string; disabled: boolean }
+declare function parseUser(raw: unknown): User; // a schema check, e.g. zod's .parse
 
-async function* listAll<T>(url: string): AsyncGenerator<T> {
+// T comes from the parser, not from the caller's say-so; see Generics in TypeScript.
+async function* listAll<T>(url: string, parse: (raw: unknown) => T): AsyncGenerator<T> {
   let next: string | null = url;
   while (next) {
     const res = await fetch(next);
-    const page = (await res.json()) as { items: T[]; next: string | null };
-    yield* page.items;
+    // Only the page envelope is asserted; each item goes through the parser.
+    const page = (await res.json()) as { items: unknown[]; next: string | null };
+    yield* page.items.map((raw) => parse(raw));
     next = page.next;
   }
 }
 
 export async function firstDisabled(): Promise<User | undefined> {
-  for await (const user of listAll<User>("https://api.example.com/users")) {
+  for await (const user of listAll("https://api.example.com/users", parseUser)) {
     if (user.disabled) return user; // stops early: no more pages are fetched
   }
   return undefined;

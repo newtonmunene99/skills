@@ -65,7 +65,7 @@ Apply measurement-driven performance patterns from the [Go Optimization Guide](h
 
 ### Neighbours
 
-- **SOLID and the GoF patterns (Builder, Strategy, Observer, Visitor, Singleton and the rest) in idiomatic Go** → Use the `design-patterns` skill if it is installed; its Go reference covers functional options, `iter.Seq`, consumer-side interfaces and which patterns vanish in Go.
+- **SOLID and the GoF patterns (Builder, Strategy, Observer, Visitor, Singleton and the rest) in idiomatic Go** → Use the `design-patterns` skill if it is installed; its Go reference covers functional options, `iter.Seq`, consumer-side interfaces, which patterns vanish in Go, and when generics (including Go 1.27 generic methods) are worth it.
 - **Reviewing a diff, branch, commit or PR as a whole** → `git-code-review` runs the review and owns the report; this skill supplies the Go checks it applies.
 - **Doc-comment wording and documentation coverage** (godoc, package docs, READMEs) → `code-documentation`. The *Documentation* sections in the task map stay useful for what a Go doc comment must state, such as context and concurrency behavior.
 

@@ -4,13 +4,15 @@ This file is the source of truth for what each pattern looks like in Go. The cat
 files ([creational.md](creational.md), [structural.md](structural.md),
 [behavioral.md](behavioral.md)) cover when a pattern is worth it and what it costs.
 Read one of those for the decision, then this file for the code. Examples target Go
-1.23+ and omit the package clause and imports.
+1.23+ and omit the package clause and imports; the generics section marks features
+from later releases (up to 1.27) where it uses them.
 
 ## Contents
 
 - [What changes the catalog in Go](#what-changes-the-catalog-in-go)
 - [SOLID in Go](#solid-in-go): [Wiring in `main`](#wiring-in-main),
   [Clean Architecture layouts in Go](#clean-architecture-layouts-in-go)
+- [Generics in Go](#generics-in-go)
 - [Creational](#creational)
 - [Structural](#structural)
 - [Behavioral](#behavioral)
@@ -35,7 +37,8 @@ Read one of those for the decision, then this file for the code. Examples target
 - **Functional options.** A variadic `...Option` parameter, where `Option` is
   `func(*T)`, replaces Builder for constructors with many optional settings.
 - **Generics.** Type-safe containers, event buses and helpers without `any` and type
-  assertions. Do not use them to fake inheritance.
+  assertions. Do not use them to fake inheritance. Methods can declare their own type
+  parameters since Go 1.27; see [Generics in Go](#generics-in-go).
 - **Range-over-func (1.23+).** `iter.Seq[V]` and `iter.Seq2[K, V]` make Iterator a
   function that callers consume with `for v := range seq`. `slices.Values`,
   `maps.Keys` and `ast.Preorder` already return them.
@@ -206,6 +209,160 @@ direction of their dependencies and drop the Java habits that come with them.
   at runtime). Parse configuration once in `main` into a typed struct, and pass
   plain values.
 
+## Generics in Go
+
+The language-neutral rules (when type parameters earn their place, and their cost)
+are in [generics.md](generics.md). This section is the Go form, current to Go 1.27.
+The Go team's own summary: write code, don't design types. Start with a function
+for the concrete type, and add a type parameter when you are about to write the same
+code for a second type.
+
+**Use a type parameter for:**
+
+- **Functions over slices, maps and channels that assume nothing about the
+  elements.** Check `slices`, `maps` and `iter` first; most of these already exist.
+- **General-purpose data structures:** sets, trees, caches, ring buffers. Values are
+  stored unboxed, and callers get their own type back without assertions.
+- **Keeping the caller's type.** Deconstruct it, `S ~[]E` or `M ~map[K]V`, so a named
+  slice type comes back as itself, not as a plain `[]E`. This is why `slices.Clone`
+  is declared `Clone[S ~[]E, E any](s S) S`.
+
+**Keep an interface, or plain code, when:**
+
+- **The code only calls methods on the value.** `func Save[W io.Writer](w W)` adds a
+  type parameter and nothing else; `func Save(w io.Writer)` says the same. Generic
+  code is not faster than an interface by default: the compiler shares one
+  instantiation per GC shape (all pointer types share one), so a method call on a type
+  parameter goes through a dictionary. Measure before choosing generics for speed.
+- **Each type needs different code.** That is an interface with several
+  implementations. A generic function that does `switch any(v).(type)` is several
+  functions in disguise.
+- **Only one type is in use.** Write it for that type.
+
+The reverse also holds, as the Google Go style guide puts it: code built on `any` and
+type switches over several types is often better as generics. And an exported generic
+API needs documentation of what each type parameter is for, ideally with a runnable
+`Example` function.
+
+```go
+// Filter returns the caller's slice type: a []Email stays a []Email.
+func Filter[S ~[]E, E any](s S, keep func(E) bool) S {
+	var out S
+	for _, v := range s {
+		if keep(v) {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// TopN takes the ordering as a function, not as a Less method constraint,
+// so it works on types the caller does not own. For built-in ordered types:
+// TopN(scores, 3, cmp.Compare[int]).
+func TopN[E any](s []E, n int, compare func(a, b E) int) []E {
+	sorted := slices.SortedFunc(slices.Values(s), func(a, b E) int { return compare(b, a) })
+	return sorted[:min(n, len(sorted))]
+}
+
+// Set is a general-purpose container: the case generics were added for.
+type Set[E comparable] struct{ m map[E]struct{} }
+
+func NewSet[E comparable](items ...E) *Set[E] {
+	s := &Set[E]{m: make(map[E]struct{}, len(items))}
+	for _, v := range items {
+		s.Add(v)
+	}
+	return s
+}
+
+func (s *Set[E]) Add(v E)          { s.m[v] = struct{}{} }
+func (s *Set[E]) Has(v E) bool     { _, ok := s.m[v]; return ok }
+func (s *Set[E]) All() iter.Seq[E] { return maps.Keys(s.m) }
+
+// Map is a generic method (Go 1.27): it declares its own type parameter R.
+func (s *Set[E]) Map[R comparable](f func(E) R) *Set[R] {
+	out := NewSet[R]()
+	for v := range s.m {
+		out.Add(f(v))
+	}
+	return out
+}
+```
+
+**Prefer a function parameter to a method constraint.** For comparison, hashing or
+formatting, take `func(a, b E) int` rather than requiring `interface{ Less(E) bool }`.
+Turning a method into a function value is easy (`E.Compare`); adding a method to a
+type you do not own is impossible. `slices.SortFunc` and `slices.BinarySearchFunc`
+follow this rule.
+
+**Generic methods (Go 1.27).** A method can now declare its own type parameters, as
+`Map` does above, and `math/rand/v2` gained `(*Rand).N[Int]`. The module's `go.mod`
+must say `go 1.27` or later; the compiler rejects them otherwise. Two rules shape when
+to use them:
+
+- **An interface method cannot have type parameters, and a generic method does not
+  satisfy an interface.** A type whose behavior callers abstract over, or fake in
+  tests, keeps non-generic methods at that seam.
+- **Use one when the operation reads as part of the type's API** and needs its
+  receiver. When it only uses exported behavior, a package-level function is just as
+  good and works on more than one type.
+
+**Constraints:**
+
+- **`comparable` admits interface types, and `==` on them can panic.** A `Set[any]`
+  compiles, and `Add([]int{1})` panics at runtime: "hash of unhashable type []int".
+  Constrain to concrete comparable types when you can.
+- **`cmp.Ordered`** covers ordering. Write a union (`~int | ~int64 | ~float64`) only
+  for arithmetic, and include the `~` so named types such as `time.Duration` fit.
+- **Constraints belong on implementations, not on generic interfaces.** Give a
+  generic interface `any`-constrained parameters and let each function ask for more.
+- **Self-referential constraints (Go 1.26).** A generic type may refer to itself in
+  its own type parameter list, so a named constraint can say "like me":
+  `type Adder[A Adder[A]] interface{ Add(A) A }`, used as `func Sum[A Adder[A]](...)`.
+- **The pointer-method constraint**, `PT interface{ *T; M() }`, is for when a function
+  must create `T` values and call pointer methods on them, as a decoder does. It is
+  hard to read; if the caller can pass a value that already has the method, take the
+  interface instead.
+
+```go
+// ParseAll creates T values and calls a pointer method on each.
+func ParseAll[T any, PT interface {
+	*T
+	encoding.TextUnmarshaler
+}](lines []string) ([]T, error) {
+	out := make([]T, len(lines))
+	for i, line := range lines {
+		if err := PT(&out[i]).UnmarshalText([]byte(line)); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+```
+
+**Smaller tools from recent releases:**
+
+- **`errors.AsType` (Go 1.26)** replaces declaring a pointer and passing its address:
+  `if pe, ok := errors.AsType[*fs.PathError](err); ok { ... }`.
+- **Generic type aliases (Go 1.24)** move a generic type between packages without
+  breaking callers: `type Set[E comparable] = sets.Set[E]` in the old package.
+- **Order type parameters for inference.** Put the ones callers must spell first, so
+  the rest are inferred: `Convert[To, From any](v From) To` is called as
+  `Convert[int](x)`.
+
+**Avoid:**
+
+- **Generic wrappers over interfaces:** `func Process[T Processor](p T)`.
+- **A generic `Repository[T]`** with `FindAll`, `Update` and `Delete` for every
+  entity. It forces every table into the same few queries. Write a store per
+  aggregate with the queries it needs.
+- **`Result[T]`, `Option[T]` and generic error-handling helpers** in APIs. Go returns
+  `(T, error)` and `(T, bool)`; a second convention makes every call site translate.
+- **A type parameter constrained by `any` that the body then inspects with
+  reflection.** That is `any` with extra syntax.
+- **Generic DSLs and assertion frameworks** whose failure messages are worse than an
+  `if` and a `t.Errorf`.
+
 ## Creational
 
 ### Factory Method
@@ -302,6 +459,10 @@ mirrors every field as a setter.
 
 **Gotcha:** if an option can be invalid, make it `func(*Server) error` and return the
 first error from the constructor, rather than panicking or silently ignoring it.
+The error still surfaces from the constructor, not at the option's call site, just
+as a builder's surfaces from `Build()`. The honest case for options is elsewhere:
+required values are parameters, so forgetting one is a compile error, and there is
+no second type mirroring every field.
 
 ### Prototype
 

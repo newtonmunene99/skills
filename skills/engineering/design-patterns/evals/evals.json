@@ -11,7 +11,7 @@
         "Recommends, as the primary answer, constructing the pool once at startup (main or the composition root) and passing it to orders, billing and reports through their constructors.",
         "Names at least two concrete costs of a package-level db.Pool() accessor, such as: the dependency is hidden from function signatures, tests share one pool and cannot substitute their own, or initialization order becomes implicit.",
         "Points out that pgxpool.New needs a context and returns an error, and that a no-argument db.Pool() must either panic, swallow the error, or return it on every call.",
-        "If it provides a lazy global at all, uses sync.OnceValues (or sync.Once with a stored error) and surfaces the construction error, rather than a hand-rolled mutex with a nil check.",
+        "If it provides a global accessor at all (lazy or explicitly initialized), it surfaces the construction error through sync.OnceValues, sync.Once with a stored error, or an Init(ctx) that returns it, rather than a hand-rolled mutex with a nil check.",
         "Suggests that consuming packages accept either the *pgxpool.Pool or a small interface declared in the consuming package, not a producer-side interface in package db."
       ],
       "signals": {
@@ -37,7 +37,8 @@
         "Keeps a clear error for an unknown provider (a ValueError naming the provider), rather than letting a bare KeyError escape from the dict lookup.",
         "Shows that adding a provider means writing one new function and adding one registry entry, with no edit to the dispatch code.",
         "States when a class-based design would become the right call: a second per-provider operation (for example refund), or per-provider state such as clients and credentials. If it names the structural type to use then, it is typing.Protocol rather than an ABC.",
-        "Any type hints in the code use builtin generics and collections.abc (dict[str, Callable[...]], Callable from collections.abc), not typing.Dict or typing.Callable."
+        "Any type hints in the code use builtin generics and collections.abc (dict[str, Callable[...]], Callable from collections.abc), not typing.Dict or typing.Callable.",
+        "The refactor keeps the providers' behavior identical (the PayPal float and the M-Pesa truncation are unchanged in the delivered code) and lists any money fixes as separate, opt-in changes."
       ],
       "signals": {
         "present": [
@@ -63,7 +64,8 @@
         "Does not flag OrderRepo for Interface Segregation, and recognizes it as already injected and narrow.",
         "Explicitly says which parts of the class are fine, rather than producing a finding for each of the five principles.",
         "Does not recommend splitting the class into one type per method or adding interfaces for types with a single implementation and no test need.",
-        "Reports at least one real correctness issue outside SOLID (money summed as floats, the refunded-status denylist that would count new statuses as revenue, or unescaped CSV fields), kept separate from the design findings."
+        "Reports at least one real correctness issue outside SOLID (money summed as floats, the refunded-status denylist that would count new statuses as revenue, or unescaped CSV fields), kept separate from the design findings.",
+        "Any refactor it delivers keeps behavior identical (same totals, rounding and CSV output); money, escaping or status-filter fixes are listed separately as opt-in changes rather than folded into the refactor."
       ],
       "signals": {
         "present": [
@@ -91,7 +93,7 @@
       ],
       "signals": {
         "present": [
-          "hold off|YAGNI|no (current )?force|not (yet )?(worth|needed|justified)|premature|overkill|over-?engineer",
+          "hold off|YAGNI|no (current )?force|not (yet )?(worth|needed|justified)|premature|overkill|over-?engineer|(wouldn't|would not|don't|do not) (add|introduce|use) (a |the )?(Strategy|Factory)",
           "func LateFee\\(daysLate int, m MemberType\\) int \\{"
         ],
         "absent": [
@@ -112,7 +114,7 @@
         "The subscription API returns an unsubscribe function or accepts an AbortSignal, so a subscriber can be removed.",
         "Addresses error isolation: a failing listener does not stop the other listeners and does not fail or roll back the shipment.",
         "Publishes the event only after the shipment state is committed, not before or mid-transaction.",
-        "Flags that in-process events are lost if the process crashes, and recommends a durable queue or a transactional outbox for the must-happen side effects (inventory and the customer email), while allowing analytics to stay best-effort.",
+        "Flags that in-process events are lost if the process crashes, and recommends a durable queue or a transactional outbox for the must-happen side effects (inventory and the customer email).",
         "Flags the listener leak for the per-connection subscriptions: each WebSocket connection's listener must be removed when its socket closes (unsubscribe or abort in the close handler), or the process-wide emitter keeps every closed connection's listener, and its socket, alive."
       ],
       "signals": {
@@ -212,7 +214,7 @@
         "Treats the force as real and centralizes the transition rules in one place, rather than leaving the scattered checks.",
         "Recommends an Enum (or StrEnum) of statuses plus a single transition table (status to allowed next statuses, or (status, event) to next status) and one transition function or method, as the primary design.",
         "Explains why the class-per-state design is the wrong shape here: the states only gate which transitions are allowed and carry no behavior of their own, so most of the 30 methods would just raise, and the transition graph would be spread across six classes where nobody can see it whole.",
-        "An invalid transition raises a specific domain exception that names the current and target status, rather than a generic exception or a silent no-op.",
+        "An invalid transition raises a specific domain exception that names the current status and the attempted transition or event, rather than a generic exception or a silent no-op.",
         "Says when state classes would become the right call: when each state carries real behavior of its own beyond allowing or refusing a transition.",
         "Shows how the scattered checks in views and tasks get replaced by calls to the one transition function, and keeps side effects such as issuing the refund out of the table."
       ],
@@ -266,7 +268,8 @@
         "Pushes back on one package per layer (entity, usecase, repository, delivery, dtos), citing stutter such as usecase.UserUsecase or one feature spread over five packages, and proposes packages named for what they provide, such as a domain package plus adapter packages like postgres and http.",
         "Declares the user-store interface in the package that consumes it (the domain or use-case package, not repository), with only the methods register and get need, in domain terms (for example Create(ctx, User) and ByID(ctx, id)), not a generic database interface.",
         "No I prefix and no Impl suffix anywhere, and the use case is a concrete struct returned by its constructor rather than an interface with a single unexported implementation.",
-        "Wires everything in main (or a run function called from main) with explicit constructor arguments, rejects the Bootstrap bag struct as a service locator, and parses configuration once into a typed struct instead of passing *viper.Viper into the service.",
+        "Wires everything in main (or a run function called from main) with explicit constructor arguments, and rejects the Bootstrap bag struct itself as a service locator, not only the Viper inside it.",
+        "Parses configuration once into a typed struct instead of passing *viper.Viper into the service or the wiring code.",
         "Tests use small hand-written fakes for the consumer-owned interfaces, and the answer does not require generating mockery mocks for every interface.",
         "The welcome email goes through a small interface the use case owns (for example a WelcomeMailer with one method), not the SES client type, and interface methods that do I/O take context.Context and return error.",
         "Flags that email uniqueness must be enforced by a database unique constraint or index, with the unique-violation error mapped to a domain error, because checking for an existing email and then inserting races under concurrent registrations."
@@ -281,6 +284,35 @@
           "type I[A-Z]\\w* interface",
           "type \\w*Impl struct",
           "type BootstrapConfig struct"
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "name": "go-generics-where-earned",
+      "prompt": "We just moved this service to Go 1.27 and want to use generics properly now. Please: (1) replace UserRepo and OrderRepo with one generic Repository[T Entity] with Create, Get, Update, Delete and FindAll; (2) make RunAll generic, RunAll[P Processor]; (3) use the new generic methods to put a Get[T any] method on the Store interface, so callers get typed values instead of []byte; and (4) add a Map[R] method to Cache that returns a new Cache with the values transformed.\n\n```go\ntype Processor interface {\n\tProcess(ctx context.Context, job Job) error\n}\n\nfunc RunAll(ctx context.Context, p Processor, jobs []Job) error {\n\tfor _, j := range jobs {\n\t\tif err := p.Process(ctx, j); err != nil {\n\t\t\treturn fmt.Errorf(\"job %s: %w\", j.ID, err)\n\t\t}\n\t}\n\treturn nil\n}\n\ntype Cache[K comparable, V any] struct {\n\tmu sync.Mutex\n\tm  map[K]V\n}\n\nfunc (c *Cache[K, V]) Get(k K) (V, bool) { c.mu.Lock(); defer c.mu.Unlock(); v, ok := c.m[k]; return v, ok }\nfunc (c *Cache[K, V]) Put(k K, v V)      { c.mu.Lock(); defer c.mu.Unlock(); c.m[k] = v }\n\n// Store holds JSON blobs; callers unmarshal what they get back.\ntype Store interface {\n\tGet(ctx context.Context, key string) ([]byte, error)\n\tPut(ctx context.Context, key string, val []byte) error\n}\n\ntype UserRepo struct{ db *pgxpool.Pool }  // Create, ByID, ByEmail, Deactivate\ntype OrderRepo struct{ db *pgxpool.Pool } // Create, ByID, ListForCustomer(ctx, customerID, page), MarkShipped\n```",
+      "expected_output": "Takes the four requests one by one. Declines the generic Repository[T]: the two repos have different queries (ByEmail, ListForCustomer, MarkShipped) that a shared CRUD surface cannot express, so each keeps its own store. Declines RunAll[P Processor], because the body only calls the interface's method and the type parameter adds nothing. Explains that Go 1.27 does not allow type parameters on interface methods, so Get[T] on Store cannot compile, and offers a package-level generic function such as GetJSON[T any](ctx, s Store, key) (T, error) that unmarshals and returns an error. Implements Map[R] as a Go 1.27 generic method (noting go 1.27 in go.mod, that it cannot satisfy an interface, and that R needs no constraint beyond any while the key type carries over), with the lock held while copying.",
+      "files": [],
+      "expectations": [
+        "Declines the single generic Repository[T] for users and orders, pointing out that their real queries differ (ByEmail, ListForCustomer, MarkShipped, Deactivate) and a shared Create/Get/Update/Delete/FindAll surface either cannot express them or forces every table into the same queries; keeps a store per aggregate.",
+        "Declines RunAll[P Processor] and keeps RunAll(ctx, p Processor, jobs), explaining that the body only calls the interface's method, so the type parameter adds syntax and nothing else.",
+        "States that Go 1.27 does not allow type parameters on interface methods, so Get[T] cannot be declared on the Store interface.",
+        "Offers a working alternative for typed reads: a package-level generic function (for example GetJSON[T any](ctx context.Context, s Store, key string) (T, error)) that unmarshals into T and returns the error, rather than panicking or returning an unchecked value.",
+        "Implements Map[R] as a generic method on *Cache[K, V] (or a package-level function, with a reason), copying under the lock, with R constrained only by any since it is a value type and K carried over.",
+        "Notes at least one generic-method constraint that matters here: the module's go.mod must say go 1.27 or later, or generic methods cannot be part of (or satisfy) an interface.",
+        "Introduces no Result[T], Option[T] or similar wrapper types, and no reflection-based generic helpers.",
+        "States the Go 1.27 rules as fact (methods may declare type parameters; interface methods may not) rather than hedging with 'if your toolchain supports it' or 'check the release notes'."
+      ],
+      "signals": {
+        "present": [
+          "interface[^.\\n]{0,120}(cannot|can't|may not|not allowed|won't compile|does not compile|doesn't compile)",
+          "func \\(c \\*Cache\\[K, V\\]\\) Map\\[R any\\]|func Map\\w*\\[K comparable, V, R any\\]",
+          "func \\w+\\[T any\\]\\(ctx context\\.Context, \\w+ Store"
+        ],
+        "absent": [
+          "type Repository\\[T \\w+\\] (struct|interface)",
+          "func RunAll\\[P Processor\\]\\([^)]*\\) error \\{",
+          "type (Result|Option)\\[T"
         ]
       }
     }

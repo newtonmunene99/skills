@@ -53,6 +53,8 @@ Supported agents include **Cursor**, **Codex**, **Claude Code**, **OpenCode**,
 - **SKILL.md.** Workflow (name the force, pick, translate, check the cost), the
   problem-to-pattern selector, SOLID quick cues, and anti-patterns
 - **references/solid.md.** The five principles in depth
+- **references/generics.md.** When type parameters earn their place, their cost,
+  and which patterns they shrink
 - **references/creational.md**, **structural.md**, **behavioral.md.** The
   language-neutral catalog: intent, force, shape, cost and neighbors per pattern
 - **references/go.md**, **python.md**, **typescript.md.** The idiomatic code for

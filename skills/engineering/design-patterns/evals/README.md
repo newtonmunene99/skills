@@ -17,12 +17,12 @@ not the skill.
 
 | File | Purpose |
 | ---- | ------- |
-| `evals.json` | The 11 eval prompts, their expectations (what the grader checks) and regex signals |
+| `evals.json` | The 12 eval prompts, their expectations (what the grader checks) and regex signals |
 | `prepare_workspace.py` | Builds the workspace layout and `eval_metadata.json` from `evals.json` |
 | `grade_signals.py` | Scans answers for the declared signals, so the mechanical checks are reproducible |
 | `run_benchmark.sh` | Aggregates grading results and opens the review viewer |
 
-## What the eleven prompts target
+## What the twelve prompts target
 
 Earlier suites in this repo scored close to 100% in both columns, because their
 expectations tested what the model already knew. These prompts are built around
@@ -43,13 +43,14 @@ at all.
 | 9 | `python-state-is-a-transition-table` | Builds the requested `OrderState` ABC with a subclass per status, where the states only gate transitions and an `Enum` plus one transition table is the right shape |
 | 10 | `ts-node-layers-without-container` | **Obliges.** Adds the requested InversifyJS container, `IOrderRepository` plus `OrderRepositoryImpl`, and `jest.mock('../db')` for a six-route app. Misses that the rules belong in a use case wired from one entry file, and that the stock check and decrement race |
 | 11 | `go-clean-architecture-keep-and-drop` | **Obliges.** Scaffolds the layer-per-package layout, `IUserRepository`/`UserRepositoryImpl`, mocks for everything and a bootstrap bag. Should keep the dependency direction, drop the Java habits, and flag that email uniqueness needs a unique constraint |
+| 12 | `go-generics-where-earned` | **Obliges.** Builds the generic `Repository[T]`, `RunAll[P Processor]` and a `Get[T]` method on an interface, which Go 1.27 does not allow. Should keep per-aggregate stores and the interface parameter, offer a package-level `GetJSON[T]`, and write only `Map[R]` as a generic method |
 
 Evals 2 and 4 are the load-bearing pair, and they pull in opposite directions. Eval
 2 has a real force, so declining to refactor is wrong; eval 4 has none, so any
 pattern is wrong. A skill that only teaches "patterns are bad" passes 4 and fails 2.
 A model that obliges every request passes neither.
 
-Evals 1, 2, 6, 8, 9, 10 and 11 are adversarial: each prompt presupposes a design and asks
+Evals 1, 2, 6, 8, 9, 10, 11 and 12 are adversarial: each prompt presupposes a design and asks
 only for its implementation. Agreeing is the easy path and the wrong answer. Eval 8
 also checks that the skill fires on everyday wording ("add an interface so I can mock
 S3"), with no pattern named.
@@ -109,8 +110,59 @@ Visitor in Go. Changes since, so iteration 1 is not like-for-like with later run
 The suite now has 54 expectations across 9 evals.
 
 Evals 10 and 11 were added on 2026-11-10 with the Node, UI and Go SOLID-in-practice
-sections of `typescript.md` and `go.md`, and have not been run yet. With them the
-suite has 68 expectations across 11 evals.
+sections of `typescript.md` and `go.md`, and eval 12 with the generics sections.
+
+## Iteration 3 results (2026-11-10)
+
+One run per configuration again (the generated `benchmark.md` still says "3 runs").
+Every eval ran with the skill and without it. Evals 10 to 12 also ran against
+`old_skill`, a snapshot of the skill on `main` before that day's additions, because a
+no-skill baseline cannot show whether new sections beat the old ones.
+
+| id | With skill | Old skill | Without | Note |
+| -- | ---------- | --------- | ------- | ---- |
+| 1 | 5/5 | — | 3/5 | Baseline put a driver-shaped `Querier` in package `db` |
+| 2 | 6/6 | — | 3/6 | Baseline built the ABC it was asked for |
+| 3 | 7/7 | — | 7/7 | Tie; the baseline folded money and CSV fixes into its refactor |
+| 4 | 5/5 | — | 4/5 | Baseline changed `LateFee` to return an error |
+| 5 | 6/7 | — | 6/7 | Tie; both routed analytics through the outbox |
+| 6 | 6/6 | — | 1/6 | Baseline built the `ClientBuilder` |
+| 7 | 6/6 | — | 5/6 | Baseline capped `Retry-After`, retrying earlier than allowed |
+| 8 | 6/6 | — | 6/6 | Tie |
+| 9 | 6/6 | — | 6/6 | Tie; the baseline also handed over a class-per-state option |
+| 10 | 6/7 | 4/7 | 5/7 | Old skill kept the rules in the route handler |
+| 11 | 7/7 | 5/7 | 4/7 | Old skill accepted the `Bootstrap` bag; baseline kept the layer layout and mockery |
+| 12 | 7/7 | 6/7 | 7/7 | Barely discriminates; the baseline hedged on Go 1.27 rules |
+
+**75 of 76 with the skill, 58 of 76 without.** On evals 1 to 9 the skill scored 53/54,
+as it did in iteration 2, so the day's additions caused no regression there. On evals
+10 to 12 the new skill scored 20/21 against 15/21 for the old one.
+
+A blind review of every answer by a second model mostly preferred answers that built
+the requested design, which this skill deliberately pushes back on. Its useful
+findings became skill changes: a new seam should be shaped around the atomic
+operation rather than encode today's race (eval 10), arguments against a requested
+design should name real costs instead of absolutes (evals 6 and 12), and the
+TypeScript caching proxy now starts its TTL when the value arrives (eval 7). One of
+its claims was wrong: `pgxpool.Pool.Query` returns an error-carrying `Rows`, not nil,
+on an acquire failure.
+
+What changed in the suite afterwards, so iteration 3 is not like-for-like with later
+runs:
+
+- **Evals 2 and 3** gained a "refactor keeps behavior identical" expectation. Two
+  graders found it was the real difference between the columns and nothing checked it.
+- **Eval 1** checks any global accessor, not only a lazy one.
+- **Eval 4**'s no-force regex now matches "wouldn't add Strategy".
+- **Eval 5** drops the "analytics may stay best-effort" clause, which both columns
+  failed on a defensible design.
+- **Eval 9** asks for the attempted transition or event, not a target status.
+- **Eval 11** splits its wiring expectation from its configuration one.
+- **Eval 12** drops "is not faster than the interface" (it invited an overstated claim)
+  and checks that Go 1.27 rules are stated as fact.
+
+The suite now has 79 expectations across 12 evals. Evals 3, 5, 8 and 9 still tie; they
+need harder prompts to measure the skill.
 
 ## A note on the signals
 

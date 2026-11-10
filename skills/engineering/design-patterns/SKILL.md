@@ -11,13 +11,14 @@ description: >-
   refactoring a growing switch, if/else chain or class, decoupling modules that
   call each other, making code extensible, pluggable or "enterprise-grade",
   adding an interface so something can be mocked, reviewing for SOLID
-  violations or over-engineering, or deciding whether an abstraction is worth
-  it. Use it even when no pattern is named. Whether a function is too complex
+  violations or over-engineering, or deciding whether an abstraction, including
+  generics and type parameters, is worth it. Use it even when no pattern is named. Whether a function is too complex
   is code-complexity's call; a whole diff or PR review is git-code-review's,
   which pulls this in for design findings.
 compatibility: >-
   Needs no tooling. The language references target Go 1.23+, Python 3.11+ and
-  TypeScript 5+; the catalog and the SOLID guidance apply to any language.
+  TypeScript 5+, and mark newer features by version (Go generics through 1.27);
+  the catalog and the SOLID guidance apply to any language.
 ---
 
 # Design Patterns
@@ -80,6 +81,13 @@ finding that cannot name the change it would make painful is not a finding.
      separate finding: name it, show the fix, and let the user opt in. Do not fold an
      error return or a new failure mode into a change that was asked to be a
      refactor.
+   - **A seam the refactor introduces should not encode a known bug.** Shape a new
+     interface around the operation callers need (`reserveAndCreate`), not around
+     today's sequence of calls (`stockFor`, then `decrement`, then `insert`), so
+     the opt-in fix lands behind it without changing the seam.
+   - **Argue against the requested design precisely.** Name the real cost, not an
+     absolute ("cannot be tested", "is never faster") that a reader can disprove.
+     If the user may still need the requested shape, say how to get it.
 
 ## Problem to pattern selector
 
@@ -141,17 +149,22 @@ finding that cannot name the change it would make painful is not a finding.
 - **Behavioral patterns.** Chain of Responsibility, Command, Interpreter, Iterator,
   Mediator, Memento, Observer, State, Strategy, Template Method, Visitor →
   [references/behavioral.md](references/behavioral.md)
+- **Generics.** When type parameters earn their place, when an interface or plain
+  code is better, what they cost, and which patterns they shrink →
+  [references/generics.md](references/generics.md)
 - **Go.** Implicit interfaces, embedding, functional options, `iter.Seq`, channels,
   `sync.OnceValue`, and which patterns vanish; packages as the unit of SRP,
-  narrowing parameters to `io.Writer`, wiring in `main`, and what to keep from
-  Clean Architecture layouts → [references/go.md](references/go.md)
+  narrowing parameters to `io.Writer`, wiring in `main`, what to keep from Clean
+  Architecture layouts, and generics through Go 1.27 (generic methods) →
+  [references/go.md](references/go.md)
 - **Python.** Protocols, first-class functions, generators, decorators, context
   managers, modules as singletons → [references/python.md](references/python.md)
 - **TypeScript / JavaScript.** Structural typing, discriminated unions, closures,
   options objects, `Symbol.iterator`, `EventTarget`, `using`; Node service layers
   and the composition root, injection versus `vi.mock`/`jest.mock`, when a DI
-  container pays, SOLID in React and Vue components, and where popular clean-code
-  guides differ → [references/typescript.md](references/typescript.md)
+  container pays, SOLID in React and Vue components, where popular clean-code
+  guides differ, and generics (`const` and `NoInfer` type parameters, return-only
+  casts) → [references/typescript.md](references/typescript.md)
 
 The catalog files are language-neutral: intent, the force, the cost, when not to use
 it. The language files are the source of truth for what the code looks like. Read
@@ -191,6 +204,11 @@ textbook; Ruby and PHP read like Python.
 - **Every subscribe needs an unsubscribe.** Observer's classic bug is the leak: a
   listener outliving its owner. In Go, a channel-based observer also needs a policy
   for slow subscribers: block, drop, or buffer.
+- **A type parameter must relate two things,** an input to the output or two inputs
+  to each other. If its constraint alone would accept the same arguments, delete it;
+  if it appears only in the result and nothing checks it at runtime, it is a cast.
+  Code that only calls methods on its argument wants an interface, not a type
+  parameter.
 - **In Go, accept interfaces and return concrete types.** An interface declared next
   to its only implementation is Java written in Go. Declare it where it is consumed.
 
