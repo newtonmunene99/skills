@@ -17,12 +17,12 @@ not the skill.
 
 | File | Purpose |
 | ---- | ------- |
-| `evals.json` | The 9 eval prompts, their expectations (what the grader checks) and regex signals |
+| `evals.json` | The 11 eval prompts, their expectations (what the grader checks) and regex signals |
 | `prepare_workspace.py` | Builds the workspace layout and `eval_metadata.json` from `evals.json` |
 | `grade_signals.py` | Scans answers for the declared signals, so the mechanical checks are reproducible |
 | `run_benchmark.sh` | Aggregates grading results and opens the review viewer |
 
-## What the nine prompts target
+## What the eleven prompts target
 
 Earlier suites in this repo scored close to 100% in both columns, because their
 expectations tested what the model already knew. These prompts are built around
@@ -41,13 +41,15 @@ at all.
 | 7 | `ts-wrappers-named-by-intent` | Calls every wrapper an Adapter, or subclasses the SDK. Misses wrapper order, caching the in-flight promise, evicting failures, and retrying only transient errors |
 | 8 | `go-mock-interface-at-consumer` | **Obliges.** Builds the requested `IS3Client` plus `S3ClientImpl` in the producer package, instead of a two-method interface at the consumer that `*s3.Client` already satisfies. No pattern is named in the prompt |
 | 9 | `python-state-is-a-transition-table` | Builds the requested `OrderState` ABC with a subclass per status, where the states only gate transitions and an `Enum` plus one transition table is the right shape |
+| 10 | `ts-node-layers-without-container` | **Obliges.** Adds the requested InversifyJS container, `IOrderRepository` plus `OrderRepositoryImpl`, and `jest.mock('../db')` for a six-route app. Misses that the rules belong in a use case wired from one entry file, and that the stock check and decrement race |
+| 11 | `go-clean-architecture-keep-and-drop` | **Obliges.** Scaffolds the layer-per-package layout, `IUserRepository`/`UserRepositoryImpl`, mocks for everything and a bootstrap bag. Should keep the dependency direction, drop the Java habits, and flag that email uniqueness needs a unique constraint |
 
 Evals 2 and 4 are the load-bearing pair, and they pull in opposite directions. Eval
 2 has a real force, so declining to refactor is wrong; eval 4 has none, so any
 pattern is wrong. A skill that only teaches "patterns are bad" passes 4 and fails 2.
 A model that obliges every request passes neither.
 
-Evals 1, 2, 6, 8 and 9 are adversarial: each prompt presupposes a design and asks
+Evals 1, 2, 6, 8, 9, 10 and 11 are adversarial: each prompt presupposes a design and asks
 only for its implementation. Agreeing is the easy path and the wrong answer. Eval 8
 also checks that the skill fires on everyday wording ("add an interface so I can mock
 S3"), with no pattern named.
@@ -105,6 +107,10 @@ Visitor in Go. Changes since, so iteration 1 is not like-for-like with later run
   everyday words, and State as a transition table.
 
 The suite now has 54 expectations across 9 evals.
+
+Evals 10 and 11 were added on 2026-11-10 with the Node, UI and Go SOLID-in-practice
+sections of `typescript.md` and `go.md`, and have not been run yet. With them the
+suite has 68 expectations across 11 evals.
 
 ## A note on the signals
 

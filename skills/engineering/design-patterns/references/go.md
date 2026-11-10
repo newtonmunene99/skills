@@ -9,7 +9,8 @@ Read one of those for the decision, then this file for the code. Examples target
 ## Contents
 
 - [What changes the catalog in Go](#what-changes-the-catalog-in-go)
-- [SOLID in Go](#solid-in-go)
+- [SOLID in Go](#solid-in-go): [Wiring in `main`](#wiring-in-main),
+  [Clean Architecture layouts in Go](#clean-architecture-layouts-in-go)
 - [Creational](#creational)
 - [Structural](#structural)
 - [Behavioral](#behavioral)
@@ -58,22 +59,53 @@ The examples are the running examples from [solid.md](solid.md), written in Go.
   `WelcomeNotifier` sends the email. Three actors ask for changes, so three types,
   usually in different packages. The same test applies to packages: `util` or
   `common` changes for as many reasons as it has callers.
+
+  In Go the package, more than the type, is the unit of change. Its name is both
+  its purpose and the prefix on everything it exports (`orders.Place`,
+  `postgres.OrderStore`), so a package whose name cannot say what it provides
+  (`common`, `utils`, `helpers`, `server`, `base`) has no single purpose either.
 - **Open/Closed.** A `ShippingCalculator` that switches over `Ground`, `Air` and `Sea`
   must be edited to add `Drone`. That is fine while carriers rarely change and the
   switch lives in one place. A `Carrier` interface, or a `map[string]RateFunc`, is
   earned only when carriers keep getting added or the same switch repeats elsewhere.
-- **Liskov Substitution.** A `Bird` interface with `Fly()` forces `Penguin` to return
-  an error or panic. Declare a narrower `Flier` interface and let only flying birds
-  satisfy it. The compiler checks method sets, not contracts: an `io.Reader` must also
-  return `n > 0` bytes alongside an error when it has them, and a typed nil pointer
-  returned as an `error` makes `err != nil` true.
+
+  Embedding extends a type, but it is not the Open/Closed seam: with no virtual
+  dispatch, the embedded type's methods never call the outer type's version (see
+  [Template Method](#template-method)). The seam is an interface or a function
+  value. And an interface method that does I/O takes a `context.Context` and
+  returns an `error`: a `PaymentMethod` with `Process()` and no error cannot report
+  a declined card.
+- **Liskov Substitution.** "Require no more, promise no less." A `Bird` interface
+  with `Fly()` forces `Penguin` to return an error or panic. Declare a narrower
+  `Flier` interface and let only flying birds satisfy it. The compiler checks method
+  sets, not contracts: an `io.Reader` must also return `n > 0` bytes alongside an
+  error when it has them, and a typed nil pointer returned as an `error` makes
+  `err != nil` true.
+
+  Go cannot reproduce the textbook `Square`/`Rectangle` case: a concrete type has no
+  subtypes, so passing a `Square` where a `*Rectangle` is expected does not compile.
+  Liskov lives entirely in interface implementations and their documented
+  contracts. The quiet violation is a method that compiles and does nothing: a
+  `Flush` that does not flush, a `Commit` that does not persist. `io.NopCloser` is
+  the documented, deliberate case; use it only where there is nothing to close.
 - **Interface Segregation.** `Worker` with `Work`, `Eat` and `Sleep` forces
   `RobotWorker` to stub out two methods. Split it into `Worker`, `Eater` and
   `Sleeper`, and let each consumer declare the one it uses. No `I` prefix.
+
+  The same rule applies to parameters, where no new interface is needed. A function
+  that only writes should take an `io.Writer`, not an `*os.File`: it is then the
+  most specific in what it requires and the most general in where it works (a file,
+  a `bytes.Buffer` in a test, a gzip stream, an HTTP response).
 - **Dependency Inversion.** A `Store.Checkout` that builds a Stripe client ties
   checkout to one vendor. The store package declares `PaymentProcessor` in its own
   terms, and `main` injects a Stripe or PayPal adapter. Accept interfaces, return
   concrete types.
+
+  Push the concrete choices up the import graph to `main`, and keep the graph wide
+  and flat: domain packages import nothing from their adapters, and only `main`
+  imports everything. The abstraction is in domain terms. "Inject a `Database`
+  interface" with `Query(sql string, args ...any)` is the driver renamed: the
+  business code still writes SQL, and every test fakes SQL strings.
 
 ```go
 // ISP: one small interface per capability.
@@ -97,7 +129,82 @@ func (s *Store) Checkout(ctx context.Context, cart Cart) error {
 	_, err := s.payments.Charge(ctx, cart.TotalCents, cart.PaymentSource)
 	return err
 }
+
+// ISP on a parameter: WriteReport needs only Write, so it asks for only Write.
+// Before: func WriteReport(f *os.File, r Report) error
+func WriteReport(w io.Writer, r Report) error {
+	_, err := fmt.Fprintf(w, "%s: %d orders\n", r.Day.Format(time.DateOnly), r.Orders)
+	return err
+}
+
+// DIP in domain terms. Not: type Database interface { Query(string, ...any) (*sql.Rows, error) }
+type OrderStore interface {
+	Save(ctx context.Context, o Order) error
+	ByCustomer(ctx context.Context, customerID string) ([]Order, error)
+}
 ```
+
+### Wiring in `main`
+
+`main` is the composition root: the one place that reads configuration, constructs
+the concrete adapters and hands them to the code that needs them. Keep it explicit,
+with constructor arguments, and return errors from a `run` function rather than
+panicking.
+
+```go
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := run(ctx, os.Getenv); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func run(ctx context.Context, getenv func(string) string) error {
+	cfg, err := loadConfig(getenv) // parsed once into a typed struct
+	if err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
+	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer pool.Close()
+
+	store := postgres.NewOrderStore(pool)     // adapter: knows SQL
+	svc := orders.NewService(store, time.Now) // policy: sees it via its own interface
+	srv := &http.Server{Addr: cfg.Addr, Handler: httpapi.New(svc)}
+	return serve(ctx, srv)
+}
+```
+
+### Clean Architecture layouts in Go
+
+Repositories that port Clean Architecture to Go are widely copied. Keep the
+direction of their dependencies and drop the Java habits that come with them.
+
+- **Keep:** handlers depend on use cases, use cases depend on store interfaces they
+  own, and the database package imports the domain, never the reverse. Wiring
+  happens in `main`.
+- **Drop the package per layer** (`entity`, `usecase`, `repository`, `delivery`,
+  `dtos`). One feature then spans five packages, and names stutter
+  (`usecase.UserUsecase`, `repository.UserRepository`). Prefer packages named for
+  what they provide. Ben Johnson's "Standard Package Layout" is one proven shape:
+  domain types and the interfaces they need in the root package, which imports
+  nothing else from the app; one subpackage per dependency (`postgres`, `http`);
+  and `main` wiring them together.
+- **Drop the interface beside its implementation** (`repository.UserRepository` plus
+  `userRepositoryImpl`). Declare it in the use-case package, where it is consumed.
+- **Drop a generated mock for every interface** in a top-level `mocks/`. A small,
+  consumer-owned interface takes a few lines to fake by hand. Keep generators for
+  large interfaces you do not own.
+- **Drop the bootstrap bag** (`Bootstrap(&BootstrapConfig{App, DB, Config, Validate})`)
+  that hands every component every dependency. It is a service locator: nothing
+  states what each part needs. Pass each constructor only its own dependencies.
+- **Drop the config object passed into business code** (a `*viper.Viper` read by key
+  at runtime). Parse configuration once in `main` into a typed struct, and pass
+  plain values.
 
 ## Creational
 
@@ -935,4 +1042,8 @@ runs in CI, the `default` panic is the only guard.
 - **`any` parameters plus type assertions to simulate overloading.** Write two functions
   with two names, or use generics.
 - **Packages named after pattern roles or layers:** `factories`, `strategies`,
-  `interfaces`, `models`, `utils`. Name packages after what they provide.
+  `interfaces`, `models`, `utils`, `usecase`, `dtos`. Name packages after what they
+  provide.
+- **Stutter between package and type:** `strategy.StrategyPattern`,
+  `user.UserService`. The package name is already the prefix; `orders.Service` reads
+  better. Mixed-case package names (`strategyPattern`) are a sign of a Java port.

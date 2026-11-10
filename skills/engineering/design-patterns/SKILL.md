@@ -142,12 +142,16 @@ finding that cannot name the change it would make painful is not a finding.
   Mediator, Memento, Observer, State, Strategy, Template Method, Visitor →
   [references/behavioral.md](references/behavioral.md)
 - **Go.** Implicit interfaces, embedding, functional options, `iter.Seq`, channels,
-  `sync.OnceValue`, and which patterns vanish → [references/go.md](references/go.md)
+  `sync.OnceValue`, and which patterns vanish; packages as the unit of SRP,
+  narrowing parameters to `io.Writer`, wiring in `main`, and what to keep from
+  Clean Architecture layouts → [references/go.md](references/go.md)
 - **Python.** Protocols, first-class functions, generators, decorators, context
   managers, modules as singletons → [references/python.md](references/python.md)
 - **TypeScript / JavaScript.** Structural typing, discriminated unions, closures,
-  options objects, `Symbol.iterator`, `EventTarget`, `using` →
-  [references/typescript.md](references/typescript.md)
+  options objects, `Symbol.iterator`, `EventTarget`, `using`; Node service layers
+  and the composition root, injection versus `vi.mock`/`jest.mock`, when a DI
+  container pays, SOLID in React and Vue components, and where popular clean-code
+  guides differ → [references/typescript.md](references/typescript.md)
 
 The catalog files are language-neutral: intent, the force, the cost, when not to use
 it. The language files are the source of truth for what the code looks like. Read

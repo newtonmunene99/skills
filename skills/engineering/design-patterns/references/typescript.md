@@ -10,6 +10,11 @@ gets the same shapes with the types removed.
 
 - [What changes the catalog in TypeScript](#what-changes-the-catalog-in-typescript)
 - [SOLID in TypeScript](#solid-in-typescript)
+- [Node services: layers and the composition root](#node-services-layers-and-the-composition-root)
+- [Test seams: injection or module mocking](#test-seams-injection-or-module-mocking)
+- [DI containers](#di-containers)
+- [SOLID in UI components](#solid-in-ui-components)
+- [When a style guide says otherwise](#when-a-style-guide-says-otherwise)
 - [Creational](#creational): [Factory Method](#factory-method),
   [Abstract Factory](#abstract-factory), [Builder](#builder),
   [Prototype](#prototype), [Singleton](#singleton)
@@ -79,7 +84,9 @@ gets the same shapes with the types removed.
 
 - **Single Responsibility.** Keep the `User` data type, the user store and the
   welcome-email notifier in separate modules. Profile rules, persistence and
-  marketing copy change for different people.
+  marketing copy change for different people. In a Node service the same test
+  splits the route handler, the use case and the store; see
+  [Node services](#node-services-layers-and-the-composition-root).
 - **Open/Closed.** A `ShippingCalculator` switch over `ground`, `air` and `sea`
   gets a `drone` case. The fix is earned only if carriers keep being added or the
   same switch repeats elsewhere. Then either a `Record<Carrier, CostFn>` or a union
@@ -112,7 +119,8 @@ gets the same shapes with the types removed.
 - **Dependency Inversion.** `Store.checkout` constructing a Stripe client ties the
   business rule to one vendor. The store module declares what it needs in its own
   terms, and the entry point injects a Stripe or PayPal adapter. A handful of
-  services never needs a DI container.
+  services never needs a DI container; see [DI containers](#di-containers) for when
+  one pays.
 
   ```ts
   // store.ts owns this type; payment code plugs into it.
@@ -128,6 +136,256 @@ gets the same shapes with the types removed.
   }
   // main.ts: const store = createStore(stripeProcessor(process.env.STRIPE_KEY ?? ""));
   ```
+
+## Node services: layers and the composition root
+
+A Node service usually splits into three parts, and SRP explains why: each changes
+for a different actor.
+
+- **The route handler** (a detail): parses and validates the request, calls one use
+  case, maps the result to a status code. It changes when the API's consumers need
+  something.
+- **The use case** (the policy): the business rule. It changes when the product
+  rules change. It declares the store and clock types it needs, in its own terms.
+- **The store** (a detail): SQL or an ORM. It changes when the schema or the
+  database does.
+
+Everything is wired in one entry file, the composition root. It is the only file
+that names concrete classes and reads `process.env`. Concretions there are expected,
+not a smell.
+
+```ts
+// orders/place-order.ts: the policy. It owns the types it depends on.
+export type Order = { id: string; sku: string; qty: number; customerId: string; placedAt: Date };
+
+export interface OrderStore {
+  reserveStock(sku: string, qty: number): Promise<boolean>;
+  save(order: Order): Promise<void>;
+}
+
+type PlaceOrderInput = { sku: string; qty: number; customerId: string };
+type PlaceOrderResult =
+  | { ok: true; order: Order }
+  | { ok: false; reason: "invalid-quantity" | "out-of-stock" };
+
+export function placeOrder(deps: { store: OrderStore; now: () => Date }) {
+  return async (input: PlaceOrderInput): Promise<PlaceOrderResult> => {
+    if (!Number.isInteger(input.qty) || input.qty <= 0) {
+      return { ok: false, reason: "invalid-quantity" };
+    }
+    if (!(await deps.store.reserveStock(input.sku, input.qty))) {
+      return { ok: false, reason: "out-of-stock" };
+    }
+    const order: Order = { id: crypto.randomUUID(), ...input, placedAt: deps.now() };
+    await deps.store.save(order);
+    return { ok: true, order };
+  };
+}
+
+// http/orders.ts: a detail. HTTP in, one call, HTTP out. No business rules here.
+export function placeOrderHandler(place: ReturnType<typeof placeOrder>) {
+  return async (req: Request): Promise<Response> => {
+    const result = await place(await req.json());
+    if (result.ok) return Response.json(result.order, { status: 201 });
+    const status = result.reason === "out-of-stock" ? 409 : 422;
+    return Response.json({ error: result.reason }, { status });
+  };
+}
+
+// main.ts: the composition root.
+// const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+// const handler = placeOrderHandler(placeOrder({ store: pgOrderStore(pool), now: () => new Date() }));
+
+// place-order.test.ts: the fake is an object literal; no database, no module mocking.
+// const store: OrderStore = { reserveStock: async () => false, save: async () => {} };
+// await placeOrder({ store, now: () => new Date(0) })({ sku: "A", qty: 1, customerId: "c" });
+// → { ok: false, reason: "out-of-stock" }
+```
+
+`req.json()` returns `any`, so real code validates the body (with zod or similar) in
+the handler before calling the use case. Validation of the request's shape belongs
+to the handler; rules about orders belong to the use case.
+
+**The smell this fixes:** `import { db } from "../db"` inside the service. The
+dependency is invisible in every signature, the module often connects at import
+time, and the only way to test the rule is to mock the module by path.
+
+**Do not over-layer.** A CRUD endpoint with no rules needs no use-case module; the
+handler calling the store is fine. Add the layer when a rule appears. Nor does each
+layer need a class and an interface: a function that closes over its dependencies,
+as above, is a complete use case.
+
+## Test seams: injection or module mocking
+
+`vi.mock("./db")` and `jest.mock("./db")` swap a module by its path, which lets a
+test reach code that hard-wires its imports. That is fine for glue at the edge: an
+entry file, a CLI script, a thin wrapper over an SDK. For business rules, inject the
+dependency instead, because module mocking:
+
+- **couples the test to file layout.** The mock names a path, so moving or
+  renaming the module breaks every test that mocks it, though no behavior changed.
+- **is hoisted above the imports.** The factory cannot use the test's variables
+  without `vi.hoisted`, which surprises readers.
+- **does not reach native ES modules in Jest.** Jest needs
+  `jest.unstable_mockModule` followed by a dynamic `import()`.
+- **leaves the dependency hidden.** The signature still lies about what the code
+  needs.
+
+The rule of thumb: if a test has to mock a module to exercise a business rule, the
+rule should take that dependency as a parameter.
+
+## DI containers
+
+Passing arguments in a composition root is dependency injection; a container only
+automates it. Some popular guides (clean-code-typescript among them) say DIP "is
+usually achieved" with an IoC container such as InversifyJS. It is achieved by the
+direction of the imports; the container is optional.
+
+What a decorator container costs in TypeScript:
+
+- **Legacy decorators and runtime metadata.** InversifyJS needs `reflect-metadata`
+  plus the `experimentalDecorators` and `emitDecoratorMetadata` compiler flags,
+  which select TypeScript's older decorator implementation instead of the standard
+  one TS 5 uses by default.
+- **Build tooling.** esbuild, and so `tsx`, does not support
+  `emitDecoratorMetadata`. Injection that relies on emitted constructor types can
+  then work under `tsc` and fail under the dev runner. Check what your bundler's
+  TypeScript transform supports before adopting a container.
+- **Tokens for interfaces.** Interfaces do not exist at runtime, so a container
+  cannot resolve one by type. Every interface-typed dependency needs a hand-made
+  string or symbol token, kept in sync by hand.
+- **Late errors.** A missing binding fails at startup or on first resolve, not at
+  compile time.
+
+A container earns its place when the graph is large, when objects need scopes (one
+transaction or user context per request), or when the framework already has one
+(NestJS, Angular). In those frameworks use the built-in DI rather than wiring by
+hand beside it.
+
+## SOLID in UI components
+
+The same principles apply to React components and hooks (and to Vue components,
+composables and slots), with props as the interface.
+
+- **Single Responsibility.** A component that fetches users, filters the active
+  ones and renders a list changes for the API team, for product and for design.
+  Move the fetching into a custom hook (`useUsers`), the rule into a plain function
+  (`onlyActive(users)`), and keep the component rendering. Stop there: "renders the
+  data it is given" is one responsibility, and splitting further rarely pays.
+- **Open/Closed.** A `Header` that checks the current route to choose its buttons is
+  edited for every new page. Give it `children` (a slot in Vue) and let each page
+  pass its own actions.
+- **Liskov Substitution.** A component that wraps a native element should be usable
+  wherever that element was: accept its props (`ComponentProps<"input">`), pass the
+  rest through, and compose with the caller's handlers instead of replacing them. A
+  component that deliberately changes behavior, like a date picker, should not
+  pretend to be an `<input>` by taking all of its props.
+- **Interface Segregation.** A `Thumbnail` that takes a whole `video: Video` cannot
+  render a live stream's cover. Take `coverUrl: string`, or
+  `Pick<User, "name" | "avatarUrl">` when several fields are needed. The limit:
+  a `UserCard` that is about users can take the user, and narrowing every prop to a
+  primitive turns into a twenty-prop component.
+- **Dependency Inversion.** A `LoginForm` that imports the `api` module cannot be
+  reused or rendered in a test without the network. Give it an `onSubmit` callback
+  in its own terms and wire the real API in a thin wrapper at the edge. Context
+  (`provide`/`inject` in Vue) suits app-wide dependencies like an API client or the
+  session, but it is a hidden dependency too: the component only works under the
+  provider. Do not use it to avoid passing two props.
+
+**Smell: many optional props used in disjoint subsets.** `text?`, `imageUrl?` and
+`audioUrl?` on one `Message` means three components in one, and nothing stops a
+caller passing all three. Split it into `TextMessage`, `ImageMessage` and
+`AudioMessage`, or make the props a discriminated union, as in [State](#state).
+
+```tsx
+import { useState, type ComponentProps } from "react";
+
+// LSP: accepts everything <input> accepts, so it can replace one anywhere.
+type CharCountInputProps = ComponentProps<"input"> & { max: number };
+
+export function CharCountInput({ max, onChange, ...rest }: CharCountInputProps) {
+  const [typed, setTyped] = useState(String(rest.defaultValue ?? "").length);
+  // Controlled: derive from value, so a parent reset updates the count too.
+  const count = rest.value !== undefined ? String(rest.value).length : typed;
+  return (
+    <label>
+      <input
+        {...rest}
+        maxLength={max}
+        onChange={(e) => {
+          setTyped(e.target.value.length);
+          onChange?.(e); // compose with the caller's handler; never swallow it
+        }}
+      />
+      <small>
+        {count}/{max}
+      </small>
+    </label>
+  );
+}
+
+// ISP: asks for the one field it renders, so videos and live streams both fit.
+export function Thumbnail({ coverUrl }: { coverUrl: string }) {
+  return <img src={coverUrl} alt="" />;
+}
+
+// DIP: the form depends on a callback it defines, not on the api module.
+type LoginFormProps = { onSubmit: (email: string, password: string) => Promise<void> };
+
+export function LoginForm({ onSubmit }: LoginFormProps) {
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        await onSubmit(String(data.get("email")), String(data.get("password")));
+      }}
+    >
+      <input name="email" type="email" />
+      <input name="password" type="password" />
+      <button type="submit">Sign in</button>
+    </form>
+  );
+}
+
+// The glue lives at the edge, next to the concrete API.
+declare const api: { login(email: string, password: string): Promise<void> };
+export const ConnectedLoginForm = () => (
+  <LoginForm onSubmit={(email, password) => api.login(email, password)} />
+);
+```
+
+**Gotcha:** this needs React 19, where `ref` is an ordinary prop and the spread
+passes it to the `<input>`. On React 18 a function component never receives `ref`,
+so the wrapper must use `forwardRef` to stay substitutable.
+
+## When a style guide says otherwise
+
+The widely shared guides (clean-code-javascript, clean-code-typescript, and many
+SOLID-in-TypeScript posts) agree with this file on most points. Where reviewers
+cite them for something different, this is when their version is right:
+
+- **"Use method chaining"** (setters that `return this`). Right for construction
+  that happens in stages, like a query built across functions. For setting fields,
+  an options object is shorter and validates once; see [Builder](#builder).
+- **"Avoid conditionals":** replace a `switch` on type with a subclass per type.
+  Right when other packages add types. For a closed set, a discriminated union with
+  an exhaustive `switch` keeps each operation in one place and the compiler lists
+  every site to update; [solid.md](solid.md) calls this the expression problem.
+- **SRP fixed with an abstract base class and a subclass per actor.** Splitting by
+  actor is the right call; the inheritance is not needed. Separate modules over a
+  shared plain data type do it with less coupling.
+- **"Swap one implementation for another" presented as Liskov.** That is DIP or
+  OCP. Liskov asks whether the swap keeps the contract: no stricter inputs, no
+  weaker results, no new errors.
+- **`IUser`, `IEmailService`.** The advice around them is usually sound; drop the
+  prefix. `Pick<User, "avatar" | "name">`, not `Pick<IUser, ...>`.
+- **Do not extend built-in prototypes** (`Array.prototype.diff = ...`). Agreed: a
+  later standard method with the same name collides with yours, which is how
+  `Array.prototype.flatten` came to be named `flat`. The guides' fix,
+  `class MyArray extends Array`, has its own surprises: `map` and `filter` return a
+  `MyArray` through `Symbol.species`. A plain function, `difference(a, b)`, is
+  simpler.
 
 ## Creational
 

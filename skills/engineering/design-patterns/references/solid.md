@@ -123,7 +123,8 @@ matching does the reverse. Pick by which axis actually grows.
 **Statement.** From Barbara Liskov and Jeannette Wing (1994), informally: code that
 works with a type must keep working, without knowing it, when given any subtype.
 
-**The rules.** A subtype, or any implementation of an interface:
+**The rules.** Jim Weirich's summary is "require no more, promise no less." A
+subtype, or any implementation of an interface:
 
 - must not **strengthen preconditions** (demand more of its inputs),
 - must not **weaken postconditions** (promise less about its results),

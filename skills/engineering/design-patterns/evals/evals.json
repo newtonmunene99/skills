@@ -226,6 +226,63 @@
           "\\nclass \\w+\\(OrderState\\):"
         ]
       }
+    },
+    {
+      "id": 10,
+      "name": "ts-node-layers-without-container",
+      "prompt": "Our Express + TypeScript API has about six routes, all written like the one below. We want it SOLID and unit-testable. The plan: add InversifyJS with @injectable classes, an IOrderRepository interface with an OrderRepositoryImpl, and jest.mock('../db') in the tests until the container is in. Can you set that up for the place-order route?\n\n```ts\n// db.ts\nimport { Pool } from \"pg\";\nexport const db = new Pool({ connectionString: process.env.DATABASE_URL });\n\n// routes/orders.ts\nimport { Router } from \"express\";\nimport { db } from \"../db\";\n\nexport const orders = Router();\n\norders.post(\"/\", async (req, res) => {\n  const { sku, qty, customerId } = req.body;\n  if (qty > 10) return res.status(422).json({ error: \"max 10 per order\" });\n  const { rows } = await db.query(\"select stock from products where sku = $1\", [sku]);\n  if (!rows[0] || rows[0].stock < qty) return res.status(409).json({ error: \"out of stock\" });\n  await db.query(\"update products set stock = stock - $1 where sku = $2\", [qty, sku]);\n  const { rows: [order] } = await db.query(\n    \"insert into orders (sku, qty, customer_id) values ($1, $2, $3) returning *\",\n    [sku, qty, customerId],\n  );\n  res.status(201).json(order);\n});\n```",
+      "expected_output": "Declines the container for a six-route app and names its concrete costs. Moves the rules (max 10, stock check) out of the Express handler into a use case that takes its dependencies as parameters and declares a small store type in domain terms. The handler only parses input and maps results to the same status codes. Wiring happens in one entry file that builds the pg Pool. The unit test uses an object-literal fake, not jest.mock of the db module. Flags, separately, that the stock check and decrement are not atomic, so concurrent orders can oversell, and that qty is never validated as a positive integer.",
+      "files": [],
+      "expectations": [
+        "Recommends against InversifyJS (or any DI container) for a graph this small, says manual wiring in one entry file is enough, and names at least one concrete cost of the container: reflect-metadata with the experimentalDecorators/emitDecoratorMetadata legacy decorators, hand-made tokens because interfaces do not exist at runtime, or missing bindings failing at runtime instead of compile time.",
+        "Moves the business rules (the 10-item limit and the stock check) out of the Express handler into a use case or service function, and leaves the handler only parsing the request, calling the use case and mapping its result to a status code.",
+        "The use case declares the store type it needs in domain terms (for example reserveStock and saveOrder), not a generic db/query interface that mirrors pg, and the names carry no I prefix or Impl suffix.",
+        "Constructs the pg Pool and passes it in from one entry file (app.ts, server.ts, main.ts or similar), so neither the use case nor the store module imports a db instance created at import time.",
+        "The unit test for the rules uses a plain object-literal (or hand-written) fake store and does not use jest.mock('../db'), and explains why module mocking is the weaker seam for business rules (coupled to file paths, hides the dependency, awkward under native ES modules).",
+        "Keeps the observable behavior the same: the same status codes (422, 409, 201) and error messages for the same inputs.",
+        "Reports as a separate correctness finding that the stock check and the decrement are not atomic, so two concurrent orders can oversell, and suggests a conditional UPDATE (where stock >= qty) or a transaction, and notes that qty is not validated as a positive integer."
+      ],
+      "signals": {
+        "present": [
+          "composition root|entry (file|point)|main\\.ts|app\\.ts|server\\.ts",
+          "race|atomic|oversell|concurren",
+          "reflect-metadata|emitDecoratorMetadata|experimentalDecorators|token"
+        ],
+        "absent": [
+          "@injectable\\(\\)\\s*\\n\\s*(export )?class",
+          "interface I[A-Z]\\w+\\s*\\{",
+          "class \\w+Impl\\b",
+          "jest\\.mock\\(['\"]\\.\\./db['\"]\\)"
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "name": "go-clean-architecture-keep-and-drop",
+      "prompt": "Set up our new Go users service with Clean Architecture and SOLID, like the popular golang-clean-architecture repos: internal/entity, internal/usecase, internal/repository, internal/delivery/http and internal/dtos. Put an IUserRepository interface with a UserRepositoryImpl in repository, a UserUsecase interface with a userUsecaseImpl in usecase, generate mockery mocks for every interface into mocks/, and wire it all in a config.Bootstrap(&BootstrapConfig{App, DB, Viper}) function. The service needs two things: register a user (the email must be unique, and we send a welcome email through our SES client), and get a user by ID. Postgres via pgx.",
+      "expected_output": "Keeps the dependency direction (handlers depend on the use case, the use case depends on interfaces it owns, the postgres code imports the domain) and drops the Java habits: no package per layer with stuttering names, no I prefix or Impl suffix, no interface for the use case with a single implementation, no mocks generated for everything, no bootstrap bag and no viper inside business code. The store and mailer interfaces are small, in domain terms, declared by the consumer, and take a context and return errors. Wiring is explicit in main or run. Flags that email uniqueness belongs to a unique constraint, since check-then-insert races.",
+      "files": [],
+      "expectations": [
+        "Pushes back on one package per layer (entity, usecase, repository, delivery, dtos), citing stutter such as usecase.UserUsecase or one feature spread over five packages, and proposes packages named for what they provide, such as a domain package plus adapter packages like postgres and http.",
+        "Declares the user-store interface in the package that consumes it (the domain or use-case package, not repository), with only the methods register and get need, in domain terms (for example Create(ctx, User) and ByID(ctx, id)), not a generic database interface.",
+        "No I prefix and no Impl suffix anywhere, and the use case is a concrete struct returned by its constructor rather than an interface with a single unexported implementation.",
+        "Wires everything in main (or a run function called from main) with explicit constructor arguments, rejects the Bootstrap bag struct as a service locator, and parses configuration once into a typed struct instead of passing *viper.Viper into the service.",
+        "Tests use small hand-written fakes for the consumer-owned interfaces, and the answer does not require generating mockery mocks for every interface.",
+        "The welcome email goes through a small interface the use case owns (for example a WelcomeMailer with one method), not the SES client type, and interface methods that do I/O take context.Context and return error.",
+        "Flags that email uniqueness must be enforced by a database unique constraint or index, with the unique-violation error mapped to a domain error, because checking for an existing email and then inserting races under concurrent registrations."
+      ],
+      "signals": {
+        "present": [
+          "consum",
+          "stutter",
+          "unique (constraint|index)|UNIQUE"
+        ],
+        "absent": [
+          "type I[A-Z]\\w* interface",
+          "type \\w*Impl struct",
+          "type BootstrapConfig struct"
+        ]
+      }
     }
   ]
 }
